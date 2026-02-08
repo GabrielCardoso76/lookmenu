@@ -1,0 +1,1 @@
+// hero.tsx placeholder

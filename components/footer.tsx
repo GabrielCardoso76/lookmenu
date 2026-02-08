@@ -1,0 +1,1 @@
+// footer.tsx placeholder

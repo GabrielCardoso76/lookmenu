@@ -1,0 +1,1 @@
+// faq-section.tsx placeholder
