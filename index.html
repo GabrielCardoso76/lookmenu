@@ -1,0 +1,1986 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LookMenu — Cardápio Digital Inteligente</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --yellow: #F5C800;
+    --yellow-hot: #FFD700;
+    --black: #080808;
+    --dark: #0F0F0F;
+    --card: #141414;
+    --border: #1E1E1E;
+    --muted: #555;
+    --white: #F8F6F0;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--black);
+    color: var(--white);
+    font-family: 'Syne', sans-serif;
+    overflow-x: hidden;
+    cursor: none;
+  }
+
+  /* CUSTOM CURSOR */
+  .cursor {
+    width: 12px; height: 12px;
+    background: var(--yellow);
+    border-radius: 50%;
+    position: fixed; top: 0; left: 0;
+    pointer-events: none; z-index: 9999;
+    transition: transform 0.15s ease;
+    mix-blend-mode: difference;
+  }
+  .cursor-ring {
+    width: 40px; height: 40px;
+    border: 1px solid rgba(245,200,0,0.4);
+    border-radius: 50%;
+    position: fixed; top: 0; left: 0;
+    pointer-events: none; z-index: 9998;
+    transition: all 0.3s ease;
+  }
+  .cursor-ring.hovering {
+    width: 60px; height: 60px;
+    border-color: var(--yellow);
+    background: rgba(245,200,0,0.05);
+  }
+
+  /* GRAIN OVERLAY */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 9997; opacity: 0.35;
+  }
+
+  /* HEADER */
+  header {
+    position: fixed; top: 0; left: 0; right: 0;
+    z-index: 100;
+    padding: 20px 48px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    background: rgba(8,8,8,0.7);
+    backdrop-filter: blur(20px);
+  }
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 2px;
+    color: var(--white);
+    text-decoration: none;
+  }
+  .logo span { color: var(--yellow); }
+
+  nav { display: flex; gap: 36px; }
+  nav a {
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 0.2s;
+    font-weight: 600;
+  }
+  nav a:hover { color: var(--white); }
+
+  .cta-header {
+    background: var(--yellow);
+    color: var(--black);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 10px 24px;
+    border: none;
+    cursor: none;
+    transition: all 0.2s;
+    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+  }
+  .cta-header:hover { background: var(--white); transform: scale(1.03); }
+
+  /* HERO */
+  .hero {
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    justify-content: flex-end;
+    padding: 0 48px 80px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero-bg {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 60% 60% at 70% 40%, rgba(245,200,0,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 40% at 20% 80%, rgba(245,200,0,0.03) 0%, transparent 50%);
+  }
+
+  .hero-grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 80px 80px;
+    transform-origin: center;
+  }
+
+  .hero-ticker {
+    position: absolute; top: 50%;
+    transform: translateY(-50%) translateX(-100%);
+    white-space: nowrap;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 220px;
+    color: rgba(245,200,0,0.03);
+    letter-spacing: -5px;
+    animation: ticker 20s linear infinite;
+    pointer-events: none;
+    user-select: none;
+  }
+  @keyframes ticker {
+    from { transform: translateY(-50%) translateX(-10%); }
+    to { transform: translateY(-50%) translateX(-60%); }
+  }
+
+  .hero-eyebrow {
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--yellow);
+    font-weight: 700;
+    margin-bottom: 24px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .hero-eyebrow::before {
+    content: '';
+    display: block;
+    width: 40px; height: 1px;
+    background: var(--yellow);
+  }
+
+  .hero-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(72px, 10vw, 160px);
+    line-height: 0.9;
+    letter-spacing: -2px;
+    margin-bottom: 40px;
+  }
+  .hero-title em {
+    font-style: normal;
+    color: var(--yellow);
+    -webkit-text-stroke: 0px;
+  }
+  .hero-title .outline {
+    -webkit-text-stroke: 1.5px rgba(255,255,255,0.3);
+    color: transparent;
+  }
+
+  .hero-bottom {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 40px;
+  }
+  .hero-desc {
+    max-width: 400px;
+    font-size: 15px;
+    line-height: 1.7;
+    color: rgba(248,246,240,0.5);
+  }
+  .hero-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 16px; }
+
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 12px;
+    background: var(--yellow);
+    color: var(--black);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 18px 40px;
+    border: none; cursor: none;
+    clip-path: polygon(12px 0%, 100% 0%, calc(100% - 12px) 100%, 0% 100%);
+    transition: all 0.3s;
+    text-decoration: none;
+  }
+  .btn-primary:hover { background: var(--white); transform: scale(1.02); }
+  .btn-primary svg { width: 16px; height: 16px; }
+
+  .hero-scroll {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex; align-items: center; gap: 8px;
+    font-weight: 600;
+  }
+  .scroll-line {
+    width: 40px; height: 1px;
+    background: var(--muted);
+    animation: scrollPulse 2s ease-in-out infinite;
+  }
+  @keyframes scrollPulse {
+    0%, 100% { width: 40px; opacity: 0.4; }
+    50% { width: 70px; opacity: 1; }
+  }
+
+  /* METRICS BAR */
+  .metrics-bar {
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    display: grid; grid-template-columns: repeat(3, 1fr);
+  }
+  .metric-item {
+    padding: 48px;
+    border-right: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+    transition: background 0.3s;
+  }
+  .metric-item:last-child { border-right: none; }
+  .metric-item:hover { background: rgba(245,200,0,0.03); }
+  .metric-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 80px;
+    line-height: 1;
+    color: var(--yellow);
+    display: block;
+  }
+  .metric-label {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    margin-top: 8px;
+    line-height: 1.5;
+    max-width: 180px;
+  }
+  .metric-icon {
+    position: absolute; bottom: 24px; right: 24px;
+    font-size: 48px;
+    opacity: 0.05;
+  }
+
+  /* MARQUEE */
+  .marquee-section {
+    padding: 24px 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--yellow);
+    overflow: hidden;
+  }
+  .marquee-track {
+    display: flex;
+    animation: marquee 15s linear infinite;
+    width: max-content;
+  }
+  .marquee-item {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 4px;
+    color: var(--black);
+    padding: 0 40px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .marquee-dot {
+    width: 6px; height: 6px;
+    background: var(--black);
+    border-radius: 50%;
+    opacity: 0.4;
+  }
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  /* BEFORE AFTER SECTION */
+  .section {
+    padding: 120px 48px;
+  }
+  .section-label {
+    font-size: 10px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--yellow);
+    font-weight: 700;
+    margin-bottom: 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .section-label::before {
+    content: '';
+    display: block; width: 24px; height: 1px;
+    background: var(--yellow);
+  }
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(48px, 6vw, 96px);
+    line-height: 0.95;
+    letter-spacing: -1px;
+  }
+  .section-title .outline {
+    -webkit-text-stroke: 1px rgba(255,255,255,0.2);
+    color: transparent;
+  }
+
+  /* BEFORE/AFTER */
+  .ba-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 2px; margin-top: 64px;
+    border: 1px solid var(--border);
+  }
+  .ba-col {
+    padding: 48px;
+    background: var(--card);
+  }
+  .ba-col.after { background: rgba(245,200,0,0.04); }
+  .ba-header {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 40px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .ba-badge {
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    font-weight: 800;
+    padding: 6px 16px;
+    border: 1px solid;
+  }
+  .ba-badge.before { border-color: rgba(255,60,60,0.3); color: rgba(255,80,80,0.7); }
+  .ba-badge.after { border-color: var(--yellow); color: var(--yellow); }
+  .ba-item {
+    display: flex; align-items: flex-start; gap: 16px;
+    margin-bottom: 28px;
+  }
+  .ba-icon {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-size: 12px;
+  }
+  .ba-icon.x { background: rgba(255,60,60,0.1); color: rgba(255,80,80,0.7); border: 1px solid rgba(255,60,60,0.2); }
+  .ba-icon.check { background: rgba(245,200,0,0.1); color: var(--yellow); border: 1px solid rgba(245,200,0,0.2); }
+  .ba-text { font-size: 14px; color: rgba(248,246,240,0.6); line-height: 1.5; padding-top: 4px; }
+
+  /* FEATURES - BENTO GRID */
+  .bento-section { padding: 0 48px 120px; }
+  .bento-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: auto;
+    gap: 2px;
+    margin-top: 64px;
+  }
+  .bento-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 40px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s, background 0.3s;
+  }
+  .bento-card:hover { border-color: rgba(245,200,0,0.3); background: rgba(245,200,0,0.02); }
+  .bento-card.span2 { grid-column: span 2; }
+  .bento-card.span3 { grid-column: span 3; }
+
+  .bento-number {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--yellow);
+    letter-spacing: 2px;
+    margin-bottom: 40px;
+    opacity: 0.7;
+  }
+  .bento-icon-big {
+    font-size: 64px;
+    margin-bottom: 24px;
+    display: block;
+    line-height: 1;
+  }
+  .bento-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+    line-height: 1;
+  }
+  .bento-desc {
+    font-size: 13px;
+    color: rgba(248,246,240,0.45);
+    line-height: 1.7;
+    max-width: 280px;
+  }
+
+  .bento-mockup {
+    margin-top: 32px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--dark);
+  }
+  .mock-bar {
+    background: rgba(255,255,255,0.04);
+    padding: 8px 12px;
+    display: flex; align-items: center; gap: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .mock-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .mock-content { padding: 16px; }
+
+  .chat-bubble {
+    background: rgba(255,255,255,0.05);
+    border-radius: 0 12px 12px 12px;
+    padding: 8px 12px;
+    font-size: 11px;
+    color: rgba(248,246,240,0.5);
+    margin-bottom: 8px;
+    width: fit-content;
+    max-width: 80%;
+    border: 1px solid var(--border);
+  }
+  .chat-bubble.user {
+    background: rgba(245,200,0,0.1);
+    border-color: rgba(245,200,0,0.2);
+    color: var(--yellow);
+    border-radius: 12px 0 12px 12px;
+    margin-left: auto;
+  }
+  .option-btn {
+    background: rgba(245,200,0,0.08);
+    border: 1px solid rgba(245,200,0,0.2);
+    color: var(--yellow);
+    font-size: 10px;
+    padding: 4px 10px;
+    margin-right: 6px;
+    cursor: pointer;
+    letter-spacing: 1px;
+  }
+
+  /* TEMPLATES */
+  .templates-section { padding: 0 48px 120px; }
+  .templates-grid {
+    display: grid; grid-template-columns: 1fr 2fr;
+    gap: 2px; margin-top: 64px;
+  }
+  .template-selector { display: flex; flex-direction: column; gap: 2px; }
+  .template-btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 24px 32px;
+    text-align: left;
+    cursor: none;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .template-btn::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--yellow);
+    transform: scaleY(0);
+    transition: transform 0.2s;
+    transform-origin: top;
+  }
+  .template-btn.active::before { transform: scaleY(1); }
+  .template-btn.active { background: rgba(245,200,0,0.05); border-color: rgba(245,200,0,0.3); }
+  .template-btn-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 24px;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .template-btn-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  .template-preview {
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 48px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .phone-frame {
+    width: 280px;
+    background: var(--dark);
+    border-radius: 32px;
+    border: 2px solid var(--border);
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.6);
+    transition: all 0.4s ease;
+  }
+  .phone-notch {
+    background: var(--black);
+    height: 28px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .phone-notch-inner {
+    width: 80px; height: 10px;
+    background: var(--dark);
+    border-radius: 5px;
+  }
+  .phone-screen { padding: 0; }
+  .phone-header {
+    padding: 16px;
+    transition: background 0.4s;
+  }
+  .phone-brand {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px;
+    font-weight: bold;
+    transition: background 0.4s, color 0.4s;
+  }
+  .phone-brand-name { font-size: 13px; font-weight: 700; margin-top: 8px; }
+  .phone-categories {
+    padding: 0 16px 12px;
+    display: flex; gap: 8px; overflow-x: hidden;
+  }
+  .phone-cat {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 20px;
+    white-space: nowrap;
+    transition: all 0.4s;
+  }
+  .phone-items { padding: 0 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+  .phone-item {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 12px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .phone-item-img {
+    width: 44px; height: 44px;
+    border-radius: 8px;
+    margin-right: 10px;
+    flex-shrink: 0;
+    transition: background 0.4s;
+  }
+  .phone-item-name { font-size: 12px; font-weight: 600; }
+  .phone-item-price { font-size: 12px; font-weight: 700; margin-top: 2px; transition: color 0.4s; }
+  .phone-add-btn {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: bold;
+    flex-shrink: 0;
+    cursor: none;
+    transition: background 0.4s, color 0.4s;
+    border: none;
+  }
+
+  /* QR SECTION - DIAGONAL */
+  .qr-section {
+    background: var(--yellow);
+    padding: 120px 48px;
+    position: relative;
+    overflow: hidden;
+    clip-path: polygon(0 4%, 100% 0, 100% 96%, 0 100%);
+    margin: 40px 0;
+  }
+  .qr-section::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 20px,
+      rgba(0,0,0,0.03) 20px,
+      rgba(0,0,0,0.03) 21px
+    );
+  }
+  .qr-content { position: relative; z-index: 1; }
+  .qr-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(60px, 8vw, 120px);
+    line-height: 0.9;
+    color: var(--black);
+    letter-spacing: -2px;
+    margin-bottom: 48px;
+  }
+  .qr-steps {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+  }
+  .qr-step {
+    padding: 40px;
+    border-right: 1px solid rgba(0,0,0,0.1);
+    position: relative;
+  }
+  .qr-step:last-child { border-right: none; }
+  .qr-step-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 80px;
+    color: rgba(0,0,0,0.08);
+    line-height: 1;
+    margin-bottom: -16px;
+  }
+  .qr-step-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 1px;
+    color: var(--black);
+    margin-bottom: 12px;
+  }
+  .qr-step-desc { font-size: 13px; color: rgba(0,0,0,0.55); line-height: 1.6; }
+
+  /* MANAGEMENT */
+  .mgmt-section { padding: 120px 48px; }
+  .mgmt-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 2px; margin-top: 64px;
+  }
+  .mgmt-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 40px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+  }
+  .mgmt-card:hover { border-color: rgba(245,200,0,0.3); }
+  .mgmt-card-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  .mgmt-card-desc { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 32px; }
+  .status-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 8px;
+  }
+  .status-text { font-size: 11px; color: rgba(248,246,240,0.6); }
+  .status-badge {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 3px;
+  }
+  .status-badge.green { background: rgba(0,220,100,0.12); color: rgb(0,220,100); }
+  .status-badge.yellow { background: rgba(245,200,0,0.12); color: var(--yellow); }
+  .status-badge.blue { background: rgba(80,140,255,0.12); color: rgb(80,140,255); }
+
+  /* PRICING */
+  .pricing-section { padding: 120px 48px; background: var(--dark); }
+  .pricing-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 2px; margin-top: 64px; max-width: 900px; margin-left: auto; margin-right: auto;
+  }
+  .pricing-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 56px 48px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+  }
+  .pricing-card.featured {
+    border-color: var(--yellow);
+    background: rgba(245,200,0,0.03);
+  }
+  .pricing-card.featured::before {
+    content: 'MAIS POPULAR';
+    position: absolute; top: 24px; right: 24px;
+    font-size: 9px; letter-spacing: 2px;
+    background: var(--yellow); color: var(--black);
+    padding: 5px 12px; font-weight: 800;
+  }
+  .pricing-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 48px; letter-spacing: 2px;
+    margin-bottom: 6px;
+  }
+  .pricing-tagline { font-size: 12px; color: var(--muted); margin-bottom: 40px; }
+  .pricing-feature {
+    display: flex; align-items: flex-start; gap: 14px;
+    margin-bottom: 18px;
+  }
+  .pricing-check {
+    width: 18px; height: 18px;
+    border: 1px solid rgba(245,200,0,0.4);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+    font-size: 10px;
+    color: var(--yellow);
+  }
+  .pricing-feature-text { font-size: 13px; color: rgba(248,246,240,0.65); line-height: 1.4; }
+
+  .btn-pricing {
+    width: 100%;
+    padding: 18px;
+    margin-top: 40px;
+    border: 1px solid var(--yellow);
+    background: transparent;
+    color: var(--yellow);
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    font-weight: 800;
+    cursor: none;
+    transition: all 0.2s;
+    font-family: 'Syne', sans-serif;
+  }
+  .btn-pricing:hover { background: var(--yellow); color: var(--black); }
+  .pricing-card.featured .btn-pricing {
+    background: var(--yellow); color: var(--black);
+  }
+  .pricing-card.featured .btn-pricing:hover { background: var(--white); }
+
+  /* FAQ */
+  .faq-section { padding: 120px 48px; }
+  .faq-layout { display: grid; grid-template-columns: 1fr 2fr; gap: 80px; margin-top: 64px; }
+  .faq-list { display: flex; flex-direction: column; gap: 0; }
+  .faq-item {
+    border-top: 1px solid var(--border);
+    overflow: hidden;
+    transition: background 0.2s;
+  }
+  .faq-item:last-child { border-bottom: 1px solid var(--border); }
+  .faq-q {
+    padding: 24px 0;
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: none;
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(248,246,240,0.8);
+    transition: color 0.2s;
+  }
+  .faq-q:hover { color: var(--white); }
+  .faq-toggle {
+    width: 24px; height: 24px;
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    color: var(--yellow);
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+  .faq-a {
+    max-height: 0;
+    overflow: hidden;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.7;
+    transition: max-height 0.35s ease, padding 0.35s ease;
+  }
+  .faq-item.open .faq-a {
+    max-height: 200px;
+    padding-bottom: 24px;
+  }
+  .faq-item.open .faq-toggle { background: var(--yellow); color: var(--black); border-color: var(--yellow); transform: rotate(45deg); }
+
+  /* CONTACT */
+  .contact-section { padding: 120px 48px; background: var(--dark); }
+  .contact-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; }
+  .contact-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(48px, 5vw, 80px);
+    line-height: 0.95; letter-spacing: -1px;
+    margin-bottom: 24px;
+  }
+  .contact-desc { font-size: 15px; color: var(--muted); line-height: 1.7; }
+  .contact-form { display: flex; flex-direction: column; gap: 16px; }
+  .form-group { display: flex; flex-direction: column; gap: 8px; }
+  .form-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  .form-input {
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 14px 18px;
+    color: var(--white);
+    font-size: 14px;
+    font-family: 'Syne', sans-serif;
+    outline: none;
+    transition: border-color 0.2s;
+    border-radius: 0;
+  }
+  .form-input:focus { border-color: var(--yellow); }
+  .form-input::placeholder { color: var(--muted); }
+  .form-submit {
+    background: var(--yellow);
+    color: var(--black);
+    border: none;
+    padding: 18px 40px;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    font-weight: 800;
+    cursor: none;
+    font-family: 'Syne', sans-serif;
+    transition: all 0.2s;
+    margin-top: 8px;
+    clip-path: polygon(12px 0%, 100% 0%, calc(100% - 12px) 100%, 0% 100%);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .form-submit:hover { background: var(--white); }
+  .form-success {
+    background: rgba(245,200,0,0.08);
+    border: 1px solid rgba(245,200,0,0.3);
+    padding: 32px;
+    text-align: center;
+    display: none;
+  }
+  .form-success.visible { display: block; }
+  .form-success-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    color: var(--yellow);
+    margin-bottom: 8px;
+  }
+  .form-success-desc { font-size: 13px; color: var(--muted); }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 48px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .footer-copy { font-size: 12px; color: var(--muted); }
+  .footer-links { display: flex; gap: 32px; }
+  .footer-links a { font-size: 11px; letter-spacing: 1px; color: var(--muted); text-decoration: none; transition: color 0.2s; }
+  .footer-links a:hover { color: var(--white); }
+  .footer-socials { display: flex; gap: 16px; }
+  .social-btn {
+    width: 36px; height: 36px;
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted);
+    transition: all 0.2s;
+    text-decoration: none;
+  }
+  .social-btn:hover { border-color: var(--yellow); color: var(--yellow); }
+
+  /* PARALLAX & REVEAL */
+  .parallax-wrapper { overflow: hidden; }
+  .reveal {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .reveal-left {
+    opacity: 0;
+    transform: translateX(-40px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+  .reveal-left.visible { opacity: 1; transform: translateX(0); }
+  .reveal-right {
+    opacity: 0;
+    transform: translateX(40px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+  .reveal-right.visible { opacity: 1; transform: translateX(0); }
+
+  /* STAGGER */
+  .stagger-1 { transition-delay: 0.1s; }
+  .stagger-2 { transition-delay: 0.2s; }
+  .stagger-3 { transition-delay: 0.3s; }
+  .stagger-4 { transition-delay: 0.4s; }
+
+  /* PARALLAX HERO */
+  .parallax-el { will-change: transform; }
+
+  /* DELIVERY SECTION */
+  .delivery-section { padding: 0 48px 120px; }
+  .delivery-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    display: grid; grid-template-columns: 1fr 1fr;
+    overflow: hidden;
+  }
+  .delivery-content { padding: 64px; }
+  .delivery-visual {
+    background: rgba(245,200,0,0.04);
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 24px; padding: 64px;
+  }
+  .delivery-logos { display: flex; align-items: center; gap: 24px; }
+  .logo-box {
+    width: 64px; height: 64px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 1px;
+  }
+  .logo-box.lm { color: var(--yellow); border-color: rgba(245,200,0,0.3); }
+  .logo-box.ifood { color: #EA1D2C; border-color: rgba(234,29,44,0.3); font-size: 22px; }
+  .connect-arrow {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    color: var(--muted); font-size: 10px; letter-spacing: 1px;
+  }
+
+  /* SUPPORT */
+  .support-section { padding: 0 48px 120px; }
+  .support-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
+  .support-intro {
+    background: var(--yellow);
+    padding: 64px;
+    color: var(--black);
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .support-intro-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 64px; line-height: 0.9;
+    letter-spacing: -1px; margin-bottom: 24px;
+  }
+  .support-intro-desc { font-size: 14px; opacity: 0.65; line-height: 1.7; }
+  .support-cta {
+    margin-top: 40px;
+    display: inline-block;
+    background: var(--black);
+    color: var(--yellow);
+    font-size: 11px; letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 800;
+    padding: 14px 32px;
+    text-decoration: none;
+    cursor: none;
+    transition: all 0.2s;
+  }
+  .support-cta:hover { background: rgba(0,0,0,0.7); }
+  .support-cards {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 2px;
+  }
+  .support-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 40px;
+    transition: all 0.3s;
+  }
+  .support-card:hover { border-color: rgba(245,200,0,0.3); background: rgba(245,200,0,0.02); }
+  .support-card-icon { font-size: 32px; margin-bottom: 16px; }
+  .support-card-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 1px; margin-bottom: 8px; }
+  .support-card-desc { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    header { padding: 16px 24px; }
+    nav { display: none; }
+    .hero { padding: 0 24px 60px; }
+    .hero-title { font-size: 64px; }
+    .hero-bottom { flex-direction: column; align-items: flex-start; }
+    .hero-actions { align-items: flex-start; }
+    .metrics-bar { grid-template-columns: 1fr; }
+    .metric-item { border-right: none; border-bottom: 1px solid var(--border); }
+    .section, .bento-section, .templates-section, .mgmt-section, .delivery-section, .support-section, .pricing-section, .faq-section, .contact-section { padding: 80px 24px; }
+    .bento-grid, .templates-grid, .mgmt-grid, .qr-steps, .pricing-grid, .faq-layout, .contact-layout { grid-template-columns: 1fr; }
+    .bento-card.span2, .bento-card.span3 { grid-column: span 1; }
+    .delivery-card, .support-layout, .support-cards { grid-template-columns: 1fr; }
+    .delivery-visual { border-left: none; border-top: 1px solid var(--border); }
+    .ba-grid { grid-template-columns: 1fr; }
+    footer { flex-direction: column; gap: 24px; text-align: center; }
+    .qr-section { clip-path: none; margin: 0; }
+  }
+
+  /* ANIMATED NUMBER COUNTER */
+  .counter-num { display: inline; }
+
+  /* HORIZONTAL SCROLL TICKER */
+  .live-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--yellow);
+    animation: blink 1.5s ease-in-out infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+  }
+
+  /* HERO FLOATING CARDS */
+  .floating-card {
+    position: absolute;
+    background: var(--card);
+    border: 1px solid rgba(245,200,0,0.2);
+    padding: 16px 20px;
+    pointer-events: none;
+    animation: float 6s ease-in-out infinite;
+  }
+  .floating-card:nth-child(1) {
+    right: 8%; top: 20%;
+    animation-delay: 0s;
+  }
+  .floating-card:nth-child(2) {
+    right: 20%; top: 45%;
+    animation-delay: 2s;
+  }
+  .floating-card:nth-child(3) {
+    right: 5%; bottom: 20%;
+    animation-delay: 4s;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-12px); }
+  }
+  .fc-label { font-size: 10px; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
+  .fc-value { font-family: 'Bebas Neue', sans-serif; font-size: 28px; color: var(--yellow); }
+  .fc-sub { font-size: 11px; color: rgba(248,246,240,0.4); }
+</style>
+</head>
+<body>
+
+<!-- Cursor -->
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<!-- HEADER -->
+<header>
+  <a href="#" class="logo">Look<span>Menu</span></a>
+  <nav>
+    <a href="#funcionalidades">Funcionalidades</a>
+    <a href="#modelos">Modelos</a>
+    <a href="#precos">Preços</a>
+    <a href="#faq">FAQ</a>
+  </nav>
+  <button class="cta-header">Começar agora</button>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid parallax-el" data-speed="0.3"></div>
+  <div class="hero-ticker">CARDÁPIO DIGITAL · WHATSAPP · AUTOMAÇÃO · CARDÁPIO DIGITAL · WHATSAPP · AUTOMAÇÃO ·</div>
+
+  <!-- Floating Cards -->
+  <div class="floating-card">
+    <div class="fc-label">Pedidos hoje</div>
+    <div class="fc-value">147</div>
+    <div class="fc-sub">↑ 23% vs. ontem</div>
+  </div>
+  <div class="floating-card">
+    <div class="fc-label">Ticket médio</div>
+    <div class="fc-value">R$52</div>
+    <div class="fc-sub"><span class="live-dot"></span> Ao vivo</div>
+  </div>
+  <div class="floating-card">
+    <div class="fc-label">Carrinho recuperado</div>
+    <div class="fc-value">+23%</div>
+    <div class="fc-sub">Automático via bot</div>
+  </div>
+
+  <div style="position: relative; z-index: 2;">
+    <div class="hero-eyebrow">Cardápio Digital Inteligente</div>
+    <h1 class="hero-title parallax-el" data-speed="0.15">
+      O cardápio<br>
+      <em>que vende</em><br>
+      <span class="outline">enquanto</span><br>
+      você dorme.
+    </h1>
+    <div class="hero-bottom">
+      <p class="hero-desc">
+        Automatize pedidos, organize sua cozinha e ofereça uma experiência visual única com cardápios web totalmente customizáveis — integrado ao WhatsApp.
+      </p>
+      <div class="hero-actions">
+        <a href="#contact" class="btn-primary">
+          Quero meu cardápio
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+        </a>
+        <div class="hero-scroll">
+          <div class="scroll-line"></div>
+          Scroll para explorar
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- METRICS -->
+<div class="metrics-bar">
+  <div class="metric-item reveal">
+    <span class="metric-value">+20%</span>
+    <span class="metric-label">mais rapidez no atendimento aos clientes</span>
+    <span class="metric-icon">⚡</span>
+  </div>
+  <div class="metric-item reveal stagger-1">
+    <span class="metric-value">−30%</span>
+    <span class="metric-label">de redução dos custos operacionais</span>
+    <span class="metric-icon">📉</span>
+  </div>
+  <div class="metric-item reveal stagger-2">
+    <span class="metric-value">+40%</span>
+    <span class="metric-label">de aumento no lucro com as vendas</span>
+    <span class="metric-icon">💰</span>
+  </div>
+</div>
+
+<!-- MARQUEE -->
+<div class="marquee-section">
+  <div class="marquee-track">
+    <div class="marquee-item">Sem comissão por pedido <span class="marquee-dot"></span></div>
+    <div class="marquee-item">100% na nuvem <span class="marquee-dot"></span></div>
+    <div class="marquee-item">Bot 24h no WhatsApp <span class="marquee-dot"></span></div>
+    <div class="marquee-item">Pagamento PIX e Crédito <span class="marquee-dot"></span></div>
+    <div class="marquee-item">Templates customizáveis <span class="marquee-dot"></span></div>
+    <div class="marquee-item">Integração iFood Entrega <span class="marquee-dot"></span></div>
+    <div class="marquee-item">Suporte humano via WhatsApp <span class="marquee-dot"></span></div>
+    <div class="marquee-item">Sem comissão por pedido <span class="marquee-dot"></span></div>
+    <div class="marquee-item">100% na nuvem <span class="marquee-dot"></span></div>
+    <div class="marquee-item">Bot 24h no WhatsApp <span class="marquee-dot"></span></div>
+    <div class="marquee-item">Pagamento PIX e Crédito <span class="marquee-dot"></span></div>
+    <div class="marquee-item">Templates customizáveis <span class="marquee-dot"></span></div>
+    <div class="marquee-item">Integração iFood Entrega <span class="marquee-dot"></span></div>
+    <div class="marquee-item">Suporte humano via WhatsApp <span class="marquee-dot"></span></div>
+  </div>
+</div>
+
+<!-- BEFORE / AFTER -->
+<section class="section">
+  <div class="section-label reveal">Antes vs. Depois</div>
+  <h2 class="section-title reveal">Transformação<br><span class="outline">real</span></h2>
+
+  <div class="ba-grid reveal">
+    <div class="ba-col">
+      <div class="ba-header">
+        <div class="ba-badge before">✕ Sem LookMenu</div>
+      </div>
+      <div class="ba-item">
+        <div class="ba-icon x">✕</div>
+        <div class="ba-text">Pedidos perdidos no WhatsApp</div>
+      </div>
+      <div class="ba-item">
+        <div class="ba-icon x">✕</div>
+        <div class="ba-text">Cardápio em PDF ou foto borrada</div>
+      </div>
+      <div class="ba-item">
+        <div class="ba-icon x">✕</div>
+        <div class="ba-text">Sem controle de estoque</div>
+      </div>
+      <div class="ba-item">
+        <div class="ba-icon x">✕</div>
+        <div class="ba-text">Cozinha desorganizada</div>
+      </div>
+      <div class="ba-item">
+        <div class="ba-icon x">✕</div>
+        <div class="ba-text">Perda de vendas por abandono</div>
+      </div>
+    </div>
+    <div class="ba-col after">
+      <div class="ba-header">
+        <div class="ba-badge after">✓ Com LookMenu</div>
+      </div>
+      <div class="ba-item">
+        <div class="ba-icon check">✓</div>
+        <div class="ba-text">Bot automático 24h no WhatsApp</div>
+      </div>
+      <div class="ba-item">
+        <div class="ba-icon check">✓</div>
+        <div class="ba-text">Cardápio digital bonito e rápido</div>
+      </div>
+      <div class="ba-item">
+        <div class="ba-icon check">✓</div>
+        <div class="ba-text">Estoque atualizado em tempo real</div>
+      </div>
+      <div class="ba-item">
+        <div class="ba-icon check">✓</div>
+        <div class="ba-text">Painel da cozinha com fila de pedidos</div>
+      </div>
+      <div class="ba-item">
+        <div class="ba-icon check">✓</div>
+        <div class="ba-text">Recuperação automática de vendas</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES BENTO -->
+<section class="bento-section" id="funcionalidades">
+  <div class="section-label reveal">Ecossistema de Vendas</div>
+  <h2 class="section-title reveal">Tudo que você<br><span class="outline">precisa</span></h2>
+
+  <div class="bento-grid">
+
+    <!-- WhatsApp Bot - large -->
+    <div class="bento-card span2 reveal">
+      <div class="bento-number">01 — ATENDIMENTO</div>
+      <div class="bento-icon-big">🤖</div>
+      <h3 class="bento-title">Bot 24h no WhatsApp</h3>
+      <p class="bento-desc">Robô que anota pedidos sozinho, o dia inteiro. Sem precisar intervir.</p>
+      <div class="bento-mockup">
+        <div class="mock-bar">
+          <div class="mock-dot" style="background:#ff5f57"></div>
+          <div class="mock-dot" style="background:#ffbd2e"></div>
+          <div class="mock-dot" style="background:#28c840"></div>
+          <span style="font-size:10px;color:var(--muted);margin-left:8px;font-family:'Space Mono',monospace;">Bot LookMenu</span>
+          <span style="margin-left:auto;width:7px;height:7px;border-radius:50%;background:rgb(0,220,100);display:inline-block;"></span>
+        </div>
+        <div class="mock-content">
+          <div class="chat-bubble">Olá! 👋 Bem-vindo ao Burger House. O que deseja?</div>
+          <div style="margin:8px 0;">
+            <span class="option-btn">1. Ver cardápio</span>
+            <span class="option-btn">2. Meus pedidos</span>
+          </div>
+          <div class="chat-bubble user">1</div>
+          <div class="chat-bubble" style="margin-top:8px;">Aqui está nosso cardápio 🍔<br><span style="color:var(--yellow)">lookmenu.com/burgerhouse</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cardápio -->
+    <div class="bento-card reveal stagger-1">
+      <div class="bento-number">02 — CARDÁPIO</div>
+      <div class="bento-icon-big">📱</div>
+      <h3 class="bento-title">Cardápio Digital Web</h3>
+      <p class="bento-desc">Link exclusivo. Bonito, rápido e sem instalar nada.</p>
+    </div>
+
+    <!-- Recovery -->
+    <div class="bento-card reveal stagger-2">
+      <div class="bento-number">03 — CONVERSÃO</div>
+      <div class="bento-icon-big">🎯</div>
+      <h3 class="bento-title">Recuperador de Vendas</h3>
+      <p class="bento-desc">Mensagens automáticas para quem abandonou o carrinho.</p>
+      <div style="margin-top:24px;padding:14px;background:rgba(245,200,0,0.06);border:1px solid rgba(245,200,0,0.15);border-radius:6px;">
+        <div style="font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:4px;">RECUPERADO HOJE</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--yellow);">+23%</div>
+        <div style="font-size:11px;color:var(--muted);">sobre valor total</div>
+      </div>
+    </div>
+
+    <!-- Payment -->
+    <div class="bento-card span3 reveal">
+      <div class="bento-number">04 — PAGAMENTO</div>
+      <div style="display:flex;align-items:flex-start;gap:48px;flex-wrap:wrap;">
+        <div>
+          <div class="bento-icon-big">💳</div>
+          <h3 class="bento-title">Pagamento Online</h3>
+          <p class="bento-desc">PIX e Crédito integrados. Sem comissão por pedido.</p>
+        </div>
+        <div style="flex:1;min-width:200px;margin-top:8px;">
+          <div class="status-row">
+            <span style="font-size:12px;font-family:'Space Mono',monospace;color:rgba(248,246,240,0.5);">PIX recebido</span>
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--yellow);">R$ 67,80</span>
+            <div class="status-badge green">Confirmado</div>
+          </div>
+          <div class="status-row">
+            <span style="font-size:12px;font-family:'Space Mono',monospace;color:rgba(248,246,240,0.5);">Crédito recebido</span>
+            <span style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--yellow);">R$ 112,50</span>
+            <div class="status-badge blue">Processando</div>
+          </div>
+          <div style="padding:12px 14px;background:rgba(0,220,100,0.05);border:1px solid rgba(0,220,100,0.15);border-radius:4px;margin-top:8px;text-align:center;">
+            <span style="font-size:11px;color:rgb(0,200,80);">✓ Taxa zero por pedido</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- QR Code -->
+    <div class="bento-card reveal stagger-1">
+      <div class="bento-number">05 — ACESSO</div>
+      <div class="bento-icon-big">⬛</div>
+      <h3 class="bento-title">QR Code na Mesa</h3>
+      <p class="bento-desc">Do escaneio ao pedido em 30 segundos. Zero app necessário.</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- TEMPLATES -->
+<section class="templates-section" id="modelos">
+  <div class="section-label reveal">Modelos</div>
+  <h2 class="section-title reveal">Chega de<br><span class="outline">cardápios</span><br>iguais.</h2>
+
+  <div class="templates-grid">
+    <!-- LEFT: selector -->
+    <div class="template-selector" id="templateSelector">
+      <button class="template-btn active" data-template="0">
+        <div class="template-btn-name">Moderno</div>
+        <div class="template-btn-desc">Dark minimalista com cartões flutuantes. Layout de grid editorial para restaurantes contemporâneos.</div>
+      </button>
+      <button class="template-btn" data-template="1">
+        <div class="template-btn-name">Clássico</div>
+        <div class="template-btn-desc">Fundo creme com tipografia serifada. Hero com foto full-bleed e menu em lista elegante.</div>
+      </button>
+      <button class="template-btn" data-template="2">
+        <div class="template-btn-name">Vibrante</div>
+        <div class="template-btn-desc">Cards coloridos sobrepostos, gradiente bold. Layout em scroll horizontal para açaí e fast-food.</div>
+      </button>
+    </div>
+
+    <!-- RIGHT: phone preview -->
+    <div class="template-preview">
+      <div style="position:relative;">
+
+        <!-- PHONE SHELL -->
+        <div id="phoneShell" style="
+          width:300px;
+          border-radius:40px;
+          border:2px solid #222;
+          overflow:hidden;
+          box-shadow:0 60px 100px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04);
+          position:relative;
+          transition:box-shadow 0.5s;
+        ">
+          <!-- NOTCH -->
+          <div style="height:32px;background:#000;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <div style="width:90px;height:12px;background:#111;border-radius:6px;"></div>
+          </div>
+
+          <!-- SCREEN CONTENT (swappable) -->
+          <div id="phoneScreen" style="height:560px;overflow:hidden;position:relative;transition:opacity 0.3s;">
+
+            <!-- ===== MOCKUP 0: MODERNO ===== -->
+            <div class="tmpl" id="tmpl0" style="background:#0a0a0a;height:100%;display:flex;flex-direction:column;font-family:'Syne',sans-serif;">
+              <!-- status bar -->
+              <div style="padding:8px 16px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:10px;color:#666;font-family:'Space Mono',monospace;">9:41</span>
+                <div style="display:flex;gap:4px;align-items:center;">
+                  <div style="width:14px;height:6px;border:1px solid #444;border-radius:1px;position:relative;">
+                    <div style="position:absolute;left:1px;top:1px;bottom:1px;width:70%;background:#F5C800;border-radius:1px;"></div>
+                  </div>
+                </div>
+              </div>
+              <!-- hero banner -->
+              <div style="margin:0 12px;border-radius:16px;background:linear-gradient(135deg,#1a1a1a 0%,#111 100%);border:1px solid #222;padding:20px;position:relative;overflow:hidden;">
+                <div style="position:absolute;top:-20px;right:-20px;width:100px;height:100px;border-radius:50%;background:rgba(245,200,0,0.06);"></div>
+                <div style="font-size:9px;letter-spacing:2px;color:#F5C800;text-transform:uppercase;margin-bottom:6px;font-weight:700;">⚡ Aberto agora</div>
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:1px;color:#F8F6F0;line-height:1;">Burger<br>House</div>
+                <div style="margin-top:8px;font-size:10px;color:#555;">⭐ 4.9 · 25–35 min · R$5 frete</div>
+              </div>
+              <!-- categories scroll -->
+              <div style="padding:14px 12px 6px;display:flex;gap:6px;overflow:hidden;">
+                <div style="background:#F5C800;color:#000;font-size:10px;font-weight:700;padding:5px 12px;border-radius:20px;white-space:nowrap;letter-spacing:0.5px;">🍔 Combos</div>
+                <div style="background:#1a1a1a;color:#666;font-size:10px;padding:5px 12px;border-radius:20px;white-space:nowrap;border:1px solid #222;">Lanches</div>
+                <div style="background:#1a1a1a;color:#666;font-size:10px;padding:5px 12px;border-radius:20px;white-space:nowrap;border:1px solid #222;">Bebidas</div>
+              </div>
+              <!-- items grid 2col -->
+              <div style="padding:8px 12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;overflow:hidden;">
+                <div style="background:#141414;border:1px solid #1e1e1e;border-radius:14px;padding:12px;position:relative;">
+                  <div style="width:100%;height:64px;border-radius:10px;background:linear-gradient(135deg,#2a1f00,#1a1400);margin-bottom:8px;display:flex;align-items:center;justify-content:center;font-size:28px;">🍔</div>
+                  <div style="font-size:11px;font-weight:700;color:#F8F6F0;margin-bottom:2px;">X-Burguer</div>
+                  <div style="font-size:10px;color:#555;margin-bottom:8px;">Blend 180g</div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:#F5C800;">R$19,90</span>
+                    <div style="width:22px;height:22px;background:#F5C800;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#000;">+</div>
+                  </div>
+                </div>
+                <div style="background:#141414;border:1px solid #1e1e1e;border-radius:14px;padding:12px;">
+                  <div style="width:100%;height:64px;border-radius:10px;background:linear-gradient(135deg,#1f1a00,#141000);margin-bottom:8px;display:flex;align-items:center;justify-content:center;font-size:28px;">🥓</div>
+                  <div style="font-size:11px;font-weight:700;color:#F8F6F0;margin-bottom:2px;">X-Bacon</div>
+                  <div style="font-size:10px;color:#555;margin-bottom:8px;">Blend + bacon</div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:#F5C800;">R$24,90</span>
+                    <div style="width:22px;height:22px;background:#F5C800;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#000;">+</div>
+                  </div>
+                </div>
+                <div style="background:#141414;border:1px solid #1e1e1e;border-radius:14px;padding:12px;grid-column:span 2;display:flex;align-items:center;gap:12px;">
+                  <div style="width:56px;height:56px;border-radius:10px;background:linear-gradient(135deg,#2a1500,#1a0d00);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px;">🔥</div>
+                  <div style="flex:1;">
+                    <div style="font-size:11px;font-weight:700;color:#F8F6F0;">X-Tudo Especial</div>
+                    <div style="font-size:10px;color:#555;margin-top:2px;">Blend + bacon + egg + cheddar</div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:#F5C800;">R$29,90</div>
+                    <div style="width:22px;height:22px;background:#F5C800;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#000;margin-top:4px;margin-left:auto;">+</div>
+                  </div>
+                </div>
+              </div>
+              <!-- cart bar -->
+              <div style="margin:8px 12px 0;background:#F5C800;border-radius:14px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="background:rgba(0,0,0,0.15);border-radius:8px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#000;">2</div>
+                  <span style="font-size:11px;font-weight:800;color:#000;letter-spacing:0.5px;">Ver carrinho</span>
+                </div>
+                <span style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:#000;">R$ 44,80</span>
+              </div>
+            </div>
+
+            <!-- ===== MOCKUP 1: CLÁSSICO ===== -->
+            <div class="tmpl" id="tmpl1" style="background:#F5EFE0;height:100%;display:none;flex-direction:column;font-family:'Syne',sans-serif;overflow:hidden;">
+              <!-- hero full image -->
+              <div style="height:180px;background:linear-gradient(180deg,#2C1810 0%,#4A2C1A 50%,#6B3D22 100%);position:relative;overflow:hidden;flex-shrink:0;">
+                <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;">
+                  <div style="font-size:48px;margin-bottom:4px;">🍕</div>
+                </div>
+                <div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,#F5EFE0);height:60px;"></div>
+                <!-- notch area -->
+                <div style="position:absolute;top:8px;left:16px;right:16px;display:flex;justify-content:space-between;">
+                  <span style="font-size:10px;color:rgba(255,255,255,0.7);font-family:'Space Mono',monospace;">9:41</span>
+                  <div style="width:14px;height:6px;border:1px solid rgba(255,255,255,0.4);border-radius:1px;position:relative;">
+                    <div style="position:absolute;left:1px;top:1px;bottom:1px;width:70%;background:#DC2626;border-radius:1px;"></div>
+                  </div>
+                </div>
+              </div>
+              <!-- restaurant info -->
+              <div style="padding:0 16px;margin-top:-16px;position:relative;z-index:1;">
+                <div style="background:#fff;border-radius:16px;padding:14px 16px;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+                  <div style="display:flex;align-items:center;justify-content:space-between;">
+                    <div>
+                      <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:#2C1810;">La Trattoria</div>
+                      <div style="font-size:10px;color:#999;margin-top:1px;">🍕 Italiana · ⭐ 4.8 · 35–50 min</div>
+                    </div>
+                    <div style="background:#DC2626;width:10px;height:10px;border-radius:50%;box-shadow:0 0 0 3px rgba(220,38,38,0.2);"></div>
+                  </div>
+                </div>
+              </div>
+              <!-- search -->
+              <div style="padding:10px 16px;">
+                <div style="background:#fff;border-radius:10px;padding:9px 14px;display:flex;align-items:center;gap:8px;border:1px solid #e8e0d0;">
+                  <span style="font-size:12px;color:#bbb;">🔍</span>
+                  <span style="font-size:11px;color:#bbb;">Buscar no cardápio...</span>
+                </div>
+              </div>
+              <!-- section title -->
+              <div style="padding:4px 16px 8px;display:flex;align-items:center;gap:10px;">
+                <div style="height:1px;flex:1;background:#DDD3C0;"></div>
+                <span style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#DC2626;font-weight:700;">Destaques</span>
+                <div style="height:1px;flex:1;background:#DDD3C0;"></div>
+              </div>
+              <!-- list items classic -->
+              <div style="padding:0 16px;display:flex;flex-direction:column;gap:8px;overflow:hidden;">
+                <div style="background:#fff;border-radius:14px;padding:12px;display:flex;gap:10px;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                  <div style="width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#4A2C1A,#6B3D22);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:26px;">🍕</div>
+                  <div style="flex:1;">
+                    <div style="font-size:12px;font-weight:700;color:#2C1810;">Margherita</div>
+                    <div style="font-size:10px;color:#999;margin-top:2px;line-height:1.4;">Molho de tomate, mussarela, manjericão fresco</div>
+                    <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:#DC2626;margin-top:4px;">R$ 42,90</div>
+                  </div>
+                  <button style="width:28px;height:28px;background:#DC2626;border:none;border-radius:8px;color:#fff;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">+</button>
+                </div>
+                <div style="background:#fff;border-radius:14px;padding:12px;display:flex;gap:10px;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                  <div style="width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#3D2010,#5A3018);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:26px;">🥩</div>
+                  <div style="flex:1;">
+                    <div style="font-size:12px;font-weight:700;color:#2C1810;">Carne 4 Queijos</div>
+                    <div style="font-size:10px;color:#999;margin-top:2px;line-height:1.4;">Blend especial + 4 queijos artesanais</div>
+                    <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:#DC2626;margin-top:4px;">R$ 54,90</div>
+                  </div>
+                  <button style="width:28px;height:28px;background:#DC2626;border:none;border-radius:8px;color:#fff;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">+</button>
+                </div>
+                <div style="background:#fff;border-radius:14px;padding:12px;display:flex;gap:10px;align-items:center;box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                  <div style="width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,#2C1A0A,#453010);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:26px;">🍝</div>
+                  <div style="flex:1;">
+                    <div style="font-size:12px;font-weight:700;color:#2C1810;">Lasanha Bolonhesa</div>
+                    <div style="font-size:10px;color:#999;margin-top:2px;line-height:1.4;">Molho à bolonhesa com massa fresca</div>
+                    <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;color:#DC2626;margin-top:4px;">R$ 38,90</div>
+                  </div>
+                  <button style="width:28px;height:28px;background:#DC2626;border:none;border-radius:8px;color:#fff;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">+</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== MOCKUP 2: VIBRANTE ===== -->
+            <div class="tmpl" id="tmpl2" style="background:linear-gradient(160deg,#0D0020 0%,#150030 60%,#0A001A 100%);height:100%;display:none;flex-direction:column;font-family:'Syne',sans-serif;overflow:hidden;">
+              <!-- status bar -->
+              <div style="padding:8px 16px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:10px;color:rgba(255,255,255,0.4);font-family:'Space Mono',monospace;">9:41</span>
+                <div style="display:flex;gap:4px;align-items:center;">
+                  <div style="width:14px;height:6px;border:1px solid rgba(255,255,255,0.3);border-radius:1px;position:relative;">
+                    <div style="position:absolute;left:1px;top:1px;bottom:1px;width:80%;background:#8B5CF6;border-radius:1px;"></div>
+                  </div>
+                </div>
+              </div>
+              <!-- top greeting -->
+              <div style="padding:4px 16px 12px;">
+                <div style="font-size:11px;color:rgba(255,255,255,0.4);">Olá! 👋 O que vai ser hoje?</div>
+                <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:1px;color:#fff;line-height:1.1;margin-top:2px;">Açaí<br><span style="color:#A78BFA;">& Cia</span></div>
+              </div>
+              <!-- promo card horizontal scroll -->
+              <div style="padding:0 16px 12px;overflow:hidden;">
+                <div style="background:linear-gradient(135deg,#7C3AED,#A855F7);border-radius:16px;padding:14px;position:relative;overflow:hidden;">
+                  <div style="position:absolute;right:-10px;top:-10px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.07);"></div>
+                  <div style="font-size:9px;letter-spacing:2px;color:rgba(255,255,255,0.6);text-transform:uppercase;margin-bottom:4px;">⚡ PROMOÇÃO DO DIA</div>
+                  <div style="font-size:13px;font-weight:700;color:#fff;">Açaí 500ml + Granola</div>
+                  <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+                    <span style="font-size:10px;color:rgba(255,255,255,0.4);text-decoration:line-through;">R$28,90</span>
+                    <span style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:#E9D5FF;">R$19,90</span>
+                  </div>
+                </div>
+              </div>
+              <!-- category pills -->
+              <div style="padding:0 16px 10px;display:flex;gap:6px;">
+                <div style="background:#8B5CF6;color:#fff;font-size:10px;font-weight:700;padding:6px 14px;border-radius:20px;">🫐 Açaí</div>
+                <div style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.5);font-size:10px;padding:6px 14px;border-radius:20px;border:1px solid rgba(255,255,255,0.08);">🍦 Sorvete</div>
+                <div style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.5);font-size:10px;padding:6px 14px;border-radius:20px;border:1px solid rgba(255,255,255,0.08);">🥤 Combos</div>
+              </div>
+              <!-- items staggered cards -->
+              <div style="padding:0 16px;display:flex;flex-direction:column;gap:8px;overflow:hidden;">
+                <div style="display:flex;gap:8px;">
+                  <div style="flex:1;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);border-radius:16px;padding:12px;text-align:center;">
+                    <div style="font-size:32px;margin-bottom:6px;">🫐</div>
+                    <div style="font-size:11px;font-weight:700;color:#fff;margin-bottom:2px;">Açaí 300ml</div>
+                    <div style="font-size:9px;color:rgba(255,255,255,0.4);margin-bottom:8px;">Com granola e mel</div>
+                    <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;color:#A78BFA;margin-bottom:6px;">R$14,90</div>
+                    <div style="background:#8B5CF6;border-radius:8px;padding:5px;font-size:12px;font-weight:700;color:#fff;">+ Add</div>
+                  </div>
+                  <div style="flex:1;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.25);border-radius:16px;padding:12px;text-align:center;">
+                    <div style="font-size:32px;margin-bottom:6px;">🍨</div>
+                    <div style="font-size:11px;font-weight:700;color:#fff;margin-bottom:2px;">Açaí 500ml</div>
+                    <div style="font-size:9px;color:rgba(255,255,255,0.4);margin-bottom:8px;">Coberturas à escolha</div>
+                    <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;color:#A78BFA;margin-bottom:6px;">R$22,90</div>
+                    <div style="background:#8B5CF6;border-radius:8px;padding:5px;font-size:12px;font-weight:700;color:#fff;">+ Add</div>
+                  </div>
+                </div>
+                <!-- wide card -->
+                <div style="background:linear-gradient(135deg,rgba(167,139,250,0.15),rgba(139,92,246,0.08));border:1px solid rgba(167,139,250,0.2);border-radius:16px;padding:12px;display:flex;align-items:center;gap:12px;">
+                  <div style="width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,#6D28D9,#8B5CF6);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:26px;">🍦</div>
+                  <div style="flex:1;">
+                    <div style="font-size:11px;font-weight:700;color:#fff;">Combo Família 1L</div>
+                    <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px;">Açaí + 4 coberturas + granola</div>
+                    <div style="font-family:'Bebas Neue',sans-serif;font-size:17px;color:#A78BFA;margin-top:3px;">R$42,90</div>
+                  </div>
+                  <div style="width:28px;height:28px;background:#8B5CF6;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0;">+</div>
+                </div>
+              </div>
+              <!-- bottom nav -->
+              <div style="margin-top:auto;padding:8px 16px;display:flex;justify-content:space-around;border-top:1px solid rgba(255,255,255,0.06);">
+                <div style="text-align:center;"><div style="font-size:14px;">🏠</div><div style="font-size:8px;color:#8B5CF6;margin-top:1px;font-weight:700;">Início</div></div>
+                <div style="text-align:center;"><div style="font-size:14px;">🔍</div><div style="font-size:8px;color:rgba(255,255,255,0.3);margin-top:1px;">Buscar</div></div>
+                <div style="text-align:center;position:relative;">
+                  <div style="font-size:14px;">🛒</div>
+                  <div style="position:absolute;top:-2px;right:-4px;width:10px;height:10px;background:#8B5CF6;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7px;color:#fff;font-weight:700;">2</div>
+                  <div style="font-size:8px;color:rgba(255,255,255,0.3);margin-top:1px;">Carrinho</div>
+                </div>
+                <div style="text-align:center;"><div style="font-size:14px;">👤</div><div style="font-size:8px;color:rgba(255,255,255,0.3);margin-top:1px;">Conta</div></div>
+              </div>
+            </div>
+
+          </div><!-- /phoneScreen -->
+
+          <!-- HOME INDICATOR -->
+          <div style="height:20px;background:#000;display:flex;align-items:center;justify-content:center;">
+            <div style="width:80px;height:3px;background:#333;border-radius:2px;"></div>
+          </div>
+        </div><!-- /phoneShell -->
+
+        <!-- Shadow reflection -->
+        <div style="position:absolute;bottom:-30px;left:50%;transform:translateX(-50%);width:200px;height:20px;background:radial-gradient(ellipse,rgba(245,200,0,0.15) 0%,transparent 70%);filter:blur(8px);pointer-events:none;transition:background 0.5s;" id="phoneShadow"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- QR CODE SECTION - diagonal yellow -->
+<section class="qr-section">
+  <div class="qr-content">
+    <h2 class="qr-title">Do QR Code<br>ao pedido<br>em 30s.</h2>
+    <div class="qr-steps">
+      <div class="qr-step">
+        <div class="qr-step-num">01</div>
+        <h3 class="qr-step-title">Escaneie o QR</h3>
+        <p class="qr-step-desc">Na mesa, no balcão ou na embalagem. Um código, acesso direto ao cardápio.</p>
+      </div>
+      <div class="qr-step">
+        <div class="qr-step-num">02</div>
+        <h3 class="qr-step-title">Abre no Celular</h3>
+        <p class="qr-step-desc">Sem instalar nada. Cardápio bonito, rápido e 100% responsivo.</p>
+      </div>
+      <div class="qr-step">
+        <div class="qr-step-num">03</div>
+        <h3 class="qr-step-title">Pedido e Pagamento</h3>
+        <p class="qr-step-desc">Escolhe, paga online e pronto. Pedido direto na cozinha em segundos.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MANAGEMENT -->
+<section class="mgmt-section">
+  <div class="section-label reveal">Gestão Completa</div>
+  <h2 class="section-title reveal">Salão e cozinha<br><span class="outline">sob controle</span></h2>
+
+  <div class="mgmt-grid">
+    <div class="mgmt-card reveal">
+      <div class="mgmt-card-title">Gestor de Pedidos</div>
+      <div class="mgmt-card-desc">Painel centralizado. Veja todos os pedidos em tempo real.</div>
+      <div class="status-row">
+        <span class="status-text">#142 — 2x Burger, 1x Frita</span>
+        <div class="status-badge yellow">Preparando</div>
+      </div>
+      <div class="status-row">
+        <span class="status-text">#143 — 1x Pizza, 2x Refri</span>
+        <div class="status-badge green">Pronto</div>
+      </div>
+      <div class="status-row">
+        <span class="status-text">#144 — 3x Hamburguer</span>
+        <div class="status-badge blue">Novo</div>
+      </div>
+      <div class="status-row">
+        <span class="status-text">#145 — 1x X-Tudo</span>
+        <div class="status-badge yellow">Preparando</div>
+      </div>
+    </div>
+
+    <div class="mgmt-card reveal stagger-1">
+      <div class="mgmt-card-title">App do Garçom</div>
+      <div class="mgmt-card-desc">Mesas e comandas em tempo real. Tudo na palma da mão.</div>
+      <div class="status-row">
+        <span class="status-text">Mesa 03 — 4 itens</span>
+        <div class="status-badge yellow">Ocupada</div>
+      </div>
+      <div class="status-row">
+        <span class="status-text">Mesa 07 — 2 itens</span>
+        <div class="status-badge green">Pedido enviado</div>
+      </div>
+      <div class="status-row">
+        <span class="status-text">Mesa 12 — vazia</span>
+        <div class="status-badge blue">Aguardando</div>
+      </div>
+    </div>
+
+    <div class="mgmt-card reveal stagger-2">
+      <div class="mgmt-card-title">Estoque & PDV</div>
+      <div class="mgmt-card-desc">Estoque, caixa e relatórios. Tudo que o dono precisa.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
+        <div style="background:rgba(245,200,0,0.06);border:1px solid rgba(245,200,0,0.15);padding:14px;text-align:center;">
+          <div style="font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:4px;">VENDAS HOJE</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--yellow);">R$2.340</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);padding:14px;text-align:center;">
+          <div style="font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:4px;">PEDIDOS</div>
+          <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--white);">47</div>
+        </div>
+      </div>
+      <div style="background:rgba(255,60,60,0.05);border:1px solid rgba(255,60,60,0.15);padding:12px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-size:11px;color:rgba(248,246,240,0.5);">Pão brioche</span>
+          <span style="font-size:11px;color:rgba(255,80,80,0.7);">⚠ Baixo: 12 un</span>
+        </div>
+        <div style="height:3px;background:var(--border);border-radius:2px;">
+          <div style="height:3px;width:20%;background:rgba(255,80,80,0.6);border-radius:2px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DELIVERY -->
+<section class="delivery-section">
+  <div class="delivery-card reveal">
+    <div class="delivery-content">
+      <div class="section-label">Logística sem estresse</div>
+      <h2 style="font-family:'Bebas Neue',sans-serif;font-size:clamp(40px,4vw,64px);line-height:0.95;letter-spacing:-1px;margin:16px 0 24px;">Sua entrega com<br>a frota do iFood.</h2>
+      <p style="font-size:14px;color:var(--muted);line-height:1.7;max-width:360px;">Não tem motoboy próprio? Sem problemas. Com a integração "Entrega Fácil", você solicita um entregador do iFood para pedidos do seu cardápio próprio.</p>
+    </div>
+    <div class="delivery-visual">
+      <div class="delivery-logos">
+        <div class="logo-box lm">LM</div>
+        <div class="connect-arrow">
+          <svg width="32" height="12" viewBox="0 0 32 12" fill="none">
+            <path d="M0 6h28M22 1l6 5-6 5" stroke="currentColor" stroke-width="1.5"/>
+          </svg>
+          <span style="font-size:9px;letter-spacing:1px;color:var(--muted);">Integrado</span>
+        </div>
+        <div class="logo-box ifood">🛵</div>
+      </div>
+      <p style="font-size:12px;color:var(--muted);text-align:center;max-width:220px;line-height:1.6;">Seu cliente pede no LookMenu, o entregador do iFood retira na sua porta. <strong style="color:var(--white);">Simples assim.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- SUPPORT -->
+<section class="support-section">
+  <div class="support-layout reveal">
+    <div class="support-intro">
+      <div>
+        <div style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:rgba(0,0,0,0.5);margin-bottom:16px;font-weight:700;">Suporte de Verdade</div>
+        <h2 class="support-intro-title">Você nunca<br>está<br>sozinho.</h2>
+        <p class="support-intro-desc">Nosso time te acompanha desde a configuração até o crescimento do seu negócio. Suporte humanizado, rápido e pelo WhatsApp.</p>
+      </div>
+      <a href="#contact" class="support-cta">Falar com o time →</a>
+    </div>
+    <div class="support-cards">
+      <div class="support-card">
+        <div class="support-card-icon">🎧</div>
+        <div class="support-card-title">Suporte Humano</div>
+        <div class="support-card-desc">Nada de chatbot. Você fala com gente de verdade que entende do seu negócio.</div>
+      </div>
+      <div class="support-card">
+        <div class="support-card-icon">⚡</div>
+        <div class="support-card-title">Resposta Rápida</div>
+        <div class="support-card-desc">Tempo médio de resposta abaixo de 5 minutos no horário comercial.</div>
+      </div>
+      <div class="support-card">
+        <div class="support-card-icon">💬</div>
+        <div class="support-card-title">WhatsApp Direto</div>
+        <div class="support-card-desc">Suporte onde você já está. Sem tickets, sem email, sem espera.</div>
+      </div>
+      <div class="support-card">
+        <div class="support-card-icon">🚀</div>
+        <div class="support-card-title">Onboarding Guiado</div>
+        <div class="support-card-desc">A gente configura tudo com você. Do zero ao primeiro pedido em 1 dia.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="pricing-section" id="precos">
+  <div class="section-label reveal">Planos e Preços</div>
+  <h2 class="section-title reveal" style="text-align:center;">Escolha seu<br><span class="outline">plano</span></h2>
+
+  <div class="pricing-grid">
+    <div class="pricing-card reveal">
+      <div class="pricing-name">Start</div>
+      <div class="pricing-tagline">Para quem está começando</div>
+      <div class="pricing-feature"><div class="pricing-check">✓</div><div class="pricing-feature-text">Atendimento automatizado via WhatsApp</div></div>
+      <div class="pricing-feature"><div class="pricing-check">✓</div><div class="pricing-feature-text">Cardápio digital web</div></div>
+      <div class="pricing-feature"><div class="pricing-check">✓</div><div class="pricing-feature-text">Gestor de pedidos básico</div></div>
+      <div class="pricing-feature"><div class="pricing-check">✓</div><div class="pricing-feature-text">1 template incluso</div></div>
+      <div class="pricing-feature"><div class="pricing-check">✓</div><div class="pricing-feature-text">Suporte via chat</div></div>
+      <button class="btn-pricing">Fale com nosso time</button>
+    </div>
+    <div class="pricing-card featured reveal stagger-1">
+      <div class="pricing-name">Plus</div>
+      <div class="pricing-tagline">Para quem quer crescer</div>
+      <div class="pricing-feature"><div class="pricing-check">✓</div><div class="pricing-feature-text">Tudo do plano Start</div></div>
+      <div class="pricing-feature"><div class="pricing-check">✓</div><div class="pricing-feature-text">Acesso a todos os templates</div></div>
+      <div class="pricing-feature"><div class="pricing-check">✓</div><div class="pricing-feature-text">Cupons de desconto</div></div>
+      <div class="pricing-feature"><div class="pricing-check">✓</div><div class="pricing-feature-text">Integração com iFood (Entrega Fácil)</div></div>
+      <div class="pricing-feature"><div class="pricing-check">✓</div><div class="pricing-feature-text">Recuperador de vendas automático</div></div>
+      <div class="pricing-feature"><div class="pricing-check">✓</div><div class="pricing-feature-text">Pagamento online (PIX e Crédito)</div></div>
+      <div class="pricing-feature"><div class="pricing-check">✓</div><div class="pricing-feature-text">Suporte prioritário via WhatsApp</div></div>
+      <button class="btn-pricing">Fale com nosso time</button>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="faq-section" id="faq">
+  <div class="faq-layout">
+    <div>
+      <div class="section-label reveal">FAQ</div>
+      <h2 class="section-title reveal">Perguntas<br><span class="outline">frequentes</span></h2>
+      <p style="margin-top:24px;font-size:14px;color:var(--muted);line-height:1.7;" class="reveal">Tem mais dúvidas? Fale com nosso time no WhatsApp.</p>
+    </div>
+    <div class="faq-list" id="faqList">
+      <div class="faq-item reveal">
+        <div class="faq-q" onclick="toggleFaq(this)">
+          Preciso instalar algum aplicativo?
+          <div class="faq-toggle">+</div>
+        </div>
+        <div class="faq-a">Não! O LookMenu funciona 100% na nuvem. Você acessa o painel de gestão pelo navegador do seu celular ou computador, sem precisar baixar nada.</div>
+      </div>
+      <div class="faq-item reveal stagger-1">
+        <div class="faq-q" onclick="toggleFaq(this)">
+          Como funciona a troca de cores do cardápio?
+          <div class="faq-toggle">+</div>
+        </div>
+        <div class="faq-a">É super simples. No painel de administração, você escolhe um dos nossos templates base e depois personaliza as cores, fontes e o logo. As mudanças aparecem em tempo real.</div>
+      </div>
+      <div class="faq-item reveal stagger-2">
+        <div class="faq-q" onclick="toggleFaq(this)">
+          O LookMenu cobra comissão por cada venda?
+          <div class="faq-toggle">+</div>
+        </div>
+        <div class="faq-a">Não. Taxa zero por pedido. Você paga apenas a assinatura mensal fixa e fica com 100% das suas vendas.</div>
+      </div>
+      <div class="faq-item reveal stagger-3">
+        <div class="faq-q" onclick="toggleFaq(this)">
+          Posso usar sem WhatsApp Business?
+          <div class="faq-toggle">+</div>
+        </div>
+        <div class="faq-a">Sim, mas recomendamos o WhatsApp Business para aproveitar ao máximo as funcionalidades de automação, como respostas automáticas e catálogo de produtos.</div>
+      </div>
+      <div class="faq-item reveal stagger-4">
+        <div class="faq-q" onclick="toggleFaq(this)">
+          Quanto tempo leva para configurar meu cardápio?
+          <div class="faq-toggle">+</div>
+        </div>
+        <div class="faq-a">Em menos de 30 minutos você já tem seu cardápio digital funcionando. Nosso time de suporte ajuda você em cada etapa do processo.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section class="contact-section" id="contact">
+  <div class="contact-layout">
+    <div class="reveal-left">
+      <div class="section-label">Contato</div>
+      <h2 class="contact-title">Tecnologia para quem<br><span style="color:var(--yellow);">faz acontecer.</span></h2>
+      <p class="contact-desc">O LookMenu nasceu com a missão de democratizar a tecnologia para restaurantes, lanchonetes e pequenos negócios de alimentação.</p>
+      <div style="margin-top:48px;padding-top:48px;border-top:1px solid var(--border);">
+        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;font-weight:700;">Por</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:2px;">Zatas</div>
+      </div>
+    </div>
+    <div class="reveal-right">
+      <div class="contact-form" id="contactForm">
+        <div class="form-group">
+          <label class="form-label">Seu nome</label>
+          <input class="form-input" type="text" placeholder="João Silva" id="nameInput">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nome da loja</label>
+          <input class="form-input" type="text" placeholder="Burger do João" id="storeInput">
+        </div>
+        <div class="form-group">
+          <label class="form-label">WhatsApp</label>
+          <input class="form-input" type="text" placeholder="(11) 99999-9999" id="phoneInput">
+        </div>
+        <button class="form-submit" onclick="submitForm()">
+          Enviar mensagem
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+        </button>
+      </div>
+      <div class="form-success" id="formSuccess">
+        <div class="form-success-title">Mensagem enviada!</div>
+        <div class="form-success-desc">Retornaremos em breve pelo WhatsApp.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-copy">© 2025 LookMenu · desenvolvido pela <strong style="color:var(--white)">Zatas</strong></div>
+  <div class="footer-links">
+    <a href="#">Termos de Uso</a>
+    <a href="#">Privacidade</a>
+  </div>
+  <div class="footer-socials">
+    <a href="#" class="social-btn" aria-label="Instagram">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+    </a>
+    <a href="#" class="social-btn" aria-label="WhatsApp">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+    </a>
+  </div>
+</footer>
+
+<script>
+  // CURSOR
+  const cursor = document.getElementById('cursor');
+  const ring = document.getElementById('cursorRing');
+  let mx = 0, my = 0, rx = 0, ry = 0;
+
+  document.addEventListener('mousemove', e => {
+    mx = e.clientX; my = e.clientY;
+    cursor.style.left = mx - 6 + 'px';
+    cursor.style.top = my - 6 + 'px';
+  });
+
+  function animateRing() {
+    rx += (mx - rx - 20) * 0.12;
+    ry += (my - ry - 20) * 0.12;
+    ring.style.left = rx + 'px';
+    ring.style.top = ry + 'px';
+    requestAnimationFrame(animateRing);
+  }
+  animateRing();
+
+  document.querySelectorAll('a, button, .faq-q, .template-btn, .metric-item').forEach(el => {
+    el.addEventListener('mouseenter', () => ring.classList.add('hovering'));
+    el.addEventListener('mouseleave', () => ring.classList.remove('hovering'));
+  });
+
+  // PARALLAX
+  const parallaxEls = document.querySelectorAll('.parallax-el');
+  window.addEventListener('scroll', () => {
+    const sy = window.scrollY;
+    parallaxEls.forEach(el => {
+      const speed = parseFloat(el.dataset.speed) || 0.2;
+      el.style.transform = `translateY(${sy * speed}px)`;
+    });
+  });
+
+  // SCROLL REVEAL
+  const reveals = document.querySelectorAll('.reveal, .reveal-left, .reveal-right');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -60px 0px' });
+  reveals.forEach(el => observer.observe(el));
+
+  // TEMPLATES — unique mockup switching
+  const shadowColors = [
+    'rgba(245,200,0,0.18)',
+    'rgba(220,38,38,0.18)',
+    'rgba(139,92,246,0.18)',
+  ];
+  const shellBorders = ['#2a2200','#2a0c0c','#1a0f2a'];
+
+  function applyTemplate(idx) {
+    // hide all, show target
+    document.querySelectorAll('.tmpl').forEach(el => {
+      el.style.display = 'none';
+    });
+    const target = document.getElementById('tmpl' + idx);
+    if (target) target.style.display = 'flex';
+
+    // update shadow glow
+    const shadow = document.getElementById('phoneShadow');
+    if (shadow) shadow.style.background = `radial-gradient(ellipse,${shadowColors[idx]} 0%,transparent 70%)`;
+
+    // update shell border tint
+    const shell = document.getElementById('phoneShell');
+    if (shell) shell.style.borderColor = shellBorders[idx];
+  }
+
+  applyTemplate(0);
+
+  document.getElementById('templateSelector').addEventListener('click', e => {
+    const btn = e.target.closest('.template-btn');
+    if (!btn) return;
+    document.querySelectorAll('.template-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const idx = parseInt(btn.dataset.template);
+
+    // fade transition
+    const screen = document.getElementById('phoneScreen');
+    screen.style.opacity = '0';
+    setTimeout(() => {
+      applyTemplate(idx);
+      screen.style.opacity = '1';
+    }, 200);
+  });
+
+  // FAQ
+  function toggleFaq(el) {
+    const item = el.parentElement;
+    const isOpen = item.classList.contains('open');
+    document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+    if (!isOpen) item.classList.add('open');
+  }
+
+  // CONTACT FORM
+  function submitForm() {
+    const name = document.getElementById('nameInput').value;
+    const store = document.getElementById('storeInput').value;
+    const phone = document.getElementById('phoneInput').value;
+    if (!name || !store || !phone) {
+      document.querySelectorAll('.form-input').forEach(i => {
+        if (!i.value) i.style.borderColor = 'rgba(255,80,80,0.6)';
+      });
+      return;
+    }
+    document.getElementById('contactForm').style.display = 'none';
+    document.getElementById('formSuccess').classList.add('visible');
+  }
+
+  document.querySelectorAll('.form-input').forEach(i => {
+    i.addEventListener('focus', () => { i.style.borderColor = 'var(--yellow)'; });
+  });
+</script>
+
+</body>
+</html>
