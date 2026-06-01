@@ -1,0 +1,151 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EstadoPedido {
+  NOVO
+  EM_PREPARACAO
+  PRONTO
+  EM_ENTREGA
+  CONCLUIDO
+  CANCELADO
+}
+
+enum TipoEntrega {
+  DELIVERY
+  RETIRADA_BALCAO
+}
+
+enum EstadoPagamento {
+  PENDENTE
+  PAGO
+  RECUSADO
+}
+
+enum MetodoPagamento {
+  PIX_ONLINE
+  CARTAO_ENTREGA
+  DINHEIRO_ENTREGA
+}
+
+model Loja {
+  id               String     @id @default(uuid()) @db.Uuid
+  nome             String
+  slug             String     @unique
+  telefoneWhatsapp String     @map("telefone_whatsapp")
+  corPrimaria      String     @map("cor_primaria")
+  exigirCadastro   Boolean    @default(false) @map("exigir_cadastro")
+  ativa            Boolean    @default(true)
+  criadoEm         DateTime   @default(now()) @map("criado_em")
+
+  categorias       Categoria[]
+  produtos         Produto[]
+  pedidos          Pedido[]
+
+  @@map("lojas")
+}
+
+model Cliente {
+  id        String     @id @default(uuid()) @db.Uuid
+  telefone  String     @unique
+  nome      String?
+  criadoEm  DateTime   @default(now()) @map("criado_em")
+
+  enderecos Endereco[]
+  pedidos   Pedido[]
+
+  @@map("clientes")
+}
+
+model Endereco {
+  id              String   @id @default(uuid()) @db.Uuid
+  clienteId       String   @db.Uuid @map("cliente_id")
+  rua             String
+  numero          String
+  bairro          String
+  cidade          String
+  pontoReferencia String?  @map("ponto_referencia")
+
+  cliente         Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  pedidosEntrega  Pedido[] @relation("PedidoEnderecoEntrega")
+
+  @@index([clienteId])
+  @@map("enderecos")
+}
+
+model Categoria {
+  id       String   @id @default(uuid()) @db.Uuid
+  lojaId   String   @db.Uuid @map("loja_id")
+  nome     String
+  ordem    Int      @default(0)
+
+  loja     Loja     @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  produtos Produto[]
+
+  @@index([lojaId])
+  @@map("categorias")
+}
+
+model Produto {
+  id          String     @id @default(uuid()) @db.Uuid
+  lojaId      String     @db.Uuid @map("loja_id")
+  categoriaId String     @db.Uuid @map("categoria_id")
+  nome        String
+  descricao   String     @db.Text
+  preco       Decimal    @db.Decimal(10, 2)
+  imagemUrl   String?    @map("imagem_url")
+  disponivel  Boolean    @default(true)
+
+  loja        Loja       @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  categoria   Categoria  @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
+  itensPedido ItemPedido[]
+
+  @@index([lojaId])
+  @@index([categoriaId])
+  @@map("produtos")
+}
+
+model Pedido {
+  id                String          @id @default(uuid()) @db.Uuid
+  lojaId            String          @db.Uuid @map("loja_id")
+  clienteId         String?         @db.Uuid @map("cliente_id")
+  estadoPedido      EstadoPedido    @map("estado_pedido")
+  tipoEntrega       TipoEntrega     @map("tipo_entrega")
+  enderecoEntregaId String?         @db.Uuid @map("endereco_entrega_id")
+  total             Decimal         @db.Decimal(10, 2)
+  estadoPagamento   EstadoPagamento @map("estado_pagamento")
+  metodoPagamento   MetodoPagamento @map("metodo_pagamento")
+  idPagamentoGateway String?        @map("id_pagamento_gateway")
+  criadoEm          DateTime        @default(now()) @map("criado_em")
+
+  loja              Loja            @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  cliente           Cliente?        @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  enderecoEntrega   Endereco?       @relation("PedidoEnderecoEntrega", fields: [enderecoEntregaId], references: [id], onDelete: SetNull)
+  itens             ItemPedido[]
+
+  @@index([lojaId])
+  @@index([clienteId])
+  @@index([enderecoEntregaId])
+  @@map("pedidos")
+}
+
+model ItemPedido {
+  id            String  @id @default(uuid()) @db.Uuid
+  pedidoId      String  @db.Uuid @map("pedido_id")
+  produtoId     String  @db.Uuid @map("produto_id")
+  quantidade    Int
+  precoUnitario Decimal @db.Decimal(10, 2) @map("preco_unitario")
+  observacao    String? @db.Text
+
+  pedido        Pedido  @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  produto       Produto @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+
+  @@index([pedidoId])
+  @@index([produtoId])
+  @@map("itens_pedido")
+}
