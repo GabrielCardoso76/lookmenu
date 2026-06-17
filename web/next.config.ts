@@ -1,7 +1,13 @@
-import type { NextConfig } from "next";
+import { config } from "dotenv"
+import { resolve } from "path"
+import type { NextConfig } from "next"
+
+config({ path: resolve(__dirname, "../.env") })
 
 const nextConfig: NextConfig = {
-  /* config options here */
-};
+  turbopack: {
+    root: __dirname,
+  },
+}
 
-export default nextConfig;
+export default nextConfig
