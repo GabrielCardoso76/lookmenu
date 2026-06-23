@@ -5,14 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DashboardShell } from "@/components/dashboard-shell"
 import { getSession } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-
-const PAINEL_NAV = [
-  { href: "/painel", label: "Início" },
-  { href: "/painel/pedidos", label: "Pedidos" },
-  { href: "/painel/categorias", label: "Categorias" },
-  { href: "/painel/produtos", label: "Produtos" },
-  { href: "/painel/aparencia", label: "Aparência" },
-]
+import { PAINEL_NAV } from "@/app/painel/nav"
 
 export default async function ProdutosPage() {
   const session = await getSession()
@@ -40,6 +33,8 @@ export default async function ProdutosPage() {
     categoriaNome: p.categoria.nome,
     disponivel: p.disponivel,
     emDestaque: p.emDestaque,
+    destinoPreparo: p.destinoPreparo,
+    imagemUrl: p.imagemUrl,
   }))
 
   return (

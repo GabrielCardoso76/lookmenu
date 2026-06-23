@@ -5,19 +5,35 @@ import { Flame, Plus } from "lucide-react"
 import { useCart } from "../carrinho/cart-context"
 import { CartBar } from "../carrinho/cart-drawer"
 import type { LojaCardapio } from "./types"
+import { FonteLink, getFontFamily } from "./fonte-utils"
 
 function formatPreco(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+}
+
+function texturaClass(textura: LojaCardapio["texturaFundo"]) {
+  switch (textura) {
+    case "GRAIN":    return "bg-grain-dark"
+    case "DOTS":     return "bg-dots-dark"
+    case "WAVES":    return "bg-waves-dark"
+    case "STRIPES":  return "bg-stripes-dark"
+    case "CHECKS":   return "bg-checks-dark"
+    case "CIRCLES":  return "bg-circles-dark"
+    case "FOOD":     return "bg-food-dark"
+    default:         return ""
+  }
 }
 
 function ProdutoCard({
   produto,
   corPrimaria,
   destaque,
+  lojaFechada,
 }: {
   produto: LojaCardapio["categorias"][0]["produtos"][0]
   corPrimaria: string
   destaque?: boolean
+  lojaFechada?: boolean
 }) {
   const { add } = useCart()
 
@@ -40,8 +56,9 @@ function ProdutoCard({
         </div>
       )}
       <button
-        onClick={() => add({ id: produto.id, nome: produto.nome, preco: produto.preco })}
-        className="shrink-0 flex h-10 w-10 items-center justify-center rounded-full border-2 text-white transition-all hover:scale-110 active:scale-95"
+        onClick={() => !lojaFechada && add({ id: produto.id, nome: produto.nome, preco: produto.preco })}
+        disabled={lojaFechada}
+        className="shrink-0 flex h-10 w-10 items-center justify-center rounded-full border-2 text-white transition-all hover:scale-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
         style={{ borderColor: corPrimaria, color: corPrimaria }}
         aria-label={`Adicionar ${produto.nome}`}
       >
@@ -52,24 +69,47 @@ function ProdutoCard({
 }
 
 export function DarkTemplate({ loja }: { loja: LojaCardapio }) {
-  const { corPrimaria } = loja
+  const { corPrimaria, texturaFundo } = loja
+  const subtitulo = loja.subtituloCardapio ?? "Cardápio digital"
   const destaques = loja.categorias.flatMap((c) => c.produtos.filter((p) => p.emDestaque))
+  const fontFamily = getFontFamily(loja.fontePreset)
+  const fechada = loja.lojaFechada ?? false
 
   return (
-    <div className="min-h-screen bg-gray-950 pb-28">
+    <div className={`min-h-screen bg-gray-950 ${texturaClass(texturaFundo)} pb-28`} style={{ fontFamily }}>
+      <FonteLink fonte={loja.fontePreset} />
       {/* Header */}
       <header className="sticky top-0 z-10 border-b border-white/10 bg-gray-950/90 backdrop-blur">
         <div className="mx-auto max-w-3xl px-4 py-5 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-white">{loja.nome}</h1>
-            <p className="mt-0.5 text-sm text-white/40">Cardápio digital</p>
+          <div className="flex items-center gap-3">
+            {loja.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={loja.logoUrl}
+                alt={`Logo ${loja.nome}`}
+                className="h-10 w-10 rounded-lg object-contain bg-white/10 p-1 shrink-0"
+              />
+            )}
+            <div>
+              <h1 className="text-2xl font-extrabold tracking-tight text-white">{loja.nome}</h1>
+              <p className="mt-0.5 text-sm text-white/40">{subtitulo}</p>
+            </div>
           </div>
           <div
             className="h-2 w-2 rounded-full animate-pulse"
-            style={{ backgroundColor: corPrimaria }}
+            style={{ backgroundColor: fechada ? "#6b7280" : corPrimaria }}
           />
         </div>
       </header>
+
+      {fechada && (
+        <div className="mx-auto max-w-3xl px-4 pt-6">
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+            <p className="font-semibold">Estamos fechados no momento</p>
+            {loja.mensagemFechada && <p className="mt-0.5 text-amber-400/80">{loja.mensagemFechada}</p>}
+          </div>
+        </div>
+      )}
 
       <main className="mx-auto max-w-3xl space-y-10 px-4 py-8">
         {destaques.length > 0 && (
@@ -80,7 +120,7 @@ export function DarkTemplate({ loja }: { loja: LojaCardapio }) {
             </div>
             <div className="space-y-3">
               {destaques.map((produto) => (
-                <ProdutoCard key={produto.id} produto={produto} corPrimaria={corPrimaria} destaque />
+                <ProdutoCard key={produto.id} produto={produto} corPrimaria={corPrimaria} destaque lojaFechada={fechada} />
               ))}
             </div>
           </section>
@@ -96,7 +136,7 @@ export function DarkTemplate({ loja }: { loja: LojaCardapio }) {
             ) : (
               <div className="space-y-3">
                 {categoria.produtos.map((produto) => (
-                  <ProdutoCard key={produto.id} produto={produto} corPrimaria={corPrimaria} />
+                  <ProdutoCard key={produto.id} produto={produto} corPrimaria={corPrimaria} lojaFechada={fechada} />
                 ))}
               </div>
             )}

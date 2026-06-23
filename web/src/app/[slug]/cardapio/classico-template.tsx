@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator"
 import { useCart } from "../carrinho/cart-context"
 import { CartBar } from "../carrinho/cart-drawer"
 import type { LojaCardapio } from "./types"
+import { FonteLink, getFontFamily } from "./fonte-utils"
 
 function formatPreco(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
@@ -15,14 +16,14 @@ function formatPreco(value: number) {
 
 function texturaClass(textura: LojaCardapio["texturaFundo"]) {
   switch (textura) {
-    case "GRAIN":
-      return "bg-grain"
-    case "DOTS":
-      return "bg-dots"
-    case "WAVES":
-      return "bg-waves"
-    default:
-      return ""
+    case "GRAIN":    return "bg-grain"
+    case "DOTS":     return "bg-dots"
+    case "WAVES":    return "bg-waves"
+    case "STRIPES":  return "bg-stripes"
+    case "CHECKS":   return "bg-checks"
+    case "CIRCLES":  return "bg-circles"
+    case "FOOD":     return "bg-food"
+    default:         return ""
   }
 }
 
@@ -30,10 +31,12 @@ function ProdutoCard({
   produto,
   corPrimaria,
   destaque,
+  lojaFechada,
 }: {
   produto: LojaCardapio["categorias"][0]["produtos"][0]
   corPrimaria: string
   destaque?: boolean
+  lojaFechada?: boolean
 }) {
   const { add } = useCart()
 
@@ -69,8 +72,9 @@ function ProdutoCard({
         ) : null}
         <CardContent className="pt-0">
           <button
-            onClick={() => add({ id: produto.id, nome: produto.nome, preco: produto.preco })}
-            className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-85 active:scale-95"
+            onClick={() => !lojaFechada && add({ id: produto.id, nome: produto.nome, preco: produto.preco })}
+            disabled={lojaFechada}
+            className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-85 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
             style={{ backgroundColor: corPrimaria }}
           >
             <Plus className="h-4 w-4" />
@@ -84,21 +88,44 @@ function ProdutoCard({
 
 export function ClassicoTemplate({ loja }: { loja: LojaCardapio }) {
   const { corPrimaria, texturaFundo } = loja
+  const subtitulo = loja.subtituloCardapio ?? "Cardápio digital"
   const destaques = loja.categorias.flatMap((c) => c.produtos.filter((p) => p.emDestaque))
+  const fontFamily = getFontFamily(loja.fontePreset)
+  const fechada = loja.lojaFechada ?? false
 
   return (
-    <div className={`min-h-screen bg-neutral-50 ${texturaClass(texturaFundo)} pb-28`}>
+    <div className={`cardapio-light min-h-screen bg-neutral-50 ${texturaClass(texturaFundo)} pb-28`} style={{ fontFamily }}>
+      <FonteLink fonte={loja.fontePreset} />
       <header
         className="sticky top-0 z-10 border-b bg-white/95 backdrop-blur"
         style={{ borderBottomColor: `${corPrimaria}33` }}
       >
-        <div className="mx-auto max-w-3xl px-4 py-5">
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: corPrimaria }}>
-            {loja.nome}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">Cardápio digital</p>
+        <div className="mx-auto max-w-3xl px-4 py-5 flex items-center gap-4">
+          {loja.logoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={loja.logoUrl}
+              alt={`Logo ${loja.nome}`}
+              className="h-12 w-12 rounded-xl object-contain border border-border bg-white p-1 shrink-0"
+            />
+          )}
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight" style={{ color: corPrimaria }}>
+              {loja.nome}
+            </h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">{subtitulo}</p>
+          </div>
         </div>
       </header>
+
+      {fechada && (
+        <div className="mx-auto max-w-3xl px-4 pt-6">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <p className="font-semibold">Estamos fechados no momento</p>
+            {loja.mensagemFechada && <p className="mt-0.5 text-amber-700">{loja.mensagemFechada}</p>}
+          </div>
+        </div>
+      )}
 
       <main className="mx-auto max-w-3xl space-y-8 px-4 py-8">
         {destaques.length > 0 && (
@@ -111,7 +138,7 @@ export function ClassicoTemplate({ loja }: { loja: LojaCardapio }) {
             </div>
             <ul className="grid gap-4">
               {destaques.map((produto) => (
-                <ProdutoCard key={produto.id} produto={produto} corPrimaria={corPrimaria} destaque />
+                <ProdutoCard key={produto.id} produto={produto} corPrimaria={corPrimaria} destaque lojaFechada={fechada} />
               ))}
             </ul>
           </section>
@@ -131,7 +158,7 @@ export function ClassicoTemplate({ loja }: { loja: LojaCardapio }) {
               ) : (
                 <ul className="grid gap-4">
                   {categoria.produtos.map((produto) => (
-                    <ProdutoCard key={produto.id} produto={produto} corPrimaria={corPrimaria} />
+                    <ProdutoCard key={produto.id} produto={produto} corPrimaria={corPrimaria} lojaFechada={fechada} />
                   ))}
                 </ul>
               )}

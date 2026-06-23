@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useRef, useState, useTransition } from "react"
 
 import {
   createProdutoAction,
@@ -32,11 +32,93 @@ type ProdutoRow = {
   categoriaNome: string
   disponivel: boolean
   emDestaque: boolean
+  destinoPreparo: string
+  imagemUrl: string | null
 }
 
 type ProdutosManagerProps = {
   produtos: ProdutoRow[]
   categorias: CategoriaOption[]
+}
+
+const DESTINO_OPTIONS = [
+  { value: "NENHUM", label: "Nenhum" },
+  { value: "COZINHA", label: "Cozinha" },
+  { value: "BAR", label: "Bar" },
+]
+
+function ImagemUrlField({
+  defaultValue,
+  name,
+}: {
+  defaultValue?: string | null
+  name: string
+}) {
+  const [preview, setPreview] = useState(defaultValue ?? "")
+  const [uploading, startUpload] = useTransition()
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    startUpload(async () => {
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("path", `produtos/${Date.now()}-${file.name}`)
+      const res = await fetch("/api/upload", { method: "POST", body: formData })
+      if (res.ok) {
+        const { url } = (await res.json()) as { url: string }
+        setPreview(url)
+      }
+    })
+  }
+
+  return (
+    <div className="space-y-2 sm:col-span-2">
+      <Label className="text-xs">Imagem do produto</Label>
+      <div className="flex items-start gap-3">
+        {preview && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={preview}
+            alt="preview"
+            className="h-16 w-16 shrink-0 rounded-lg border border-border object-cover"
+          />
+        )}
+        <div className="flex-1 space-y-1.5">
+          <Input
+            name={name}
+            value={preview}
+            onChange={(e) => setPreview(e.target.value)}
+            placeholder="https://... ou selecione um arquivo"
+            className="text-sm"
+          />
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={uploading}
+              onClick={() => fileRef.current?.click()}
+              className="text-xs"
+            >
+              {uploading ? "Enviando..." : "Escolher arquivo"}
+            </Button>
+            {preview && (
+              <button
+                type="button"
+                onClick={() => setPreview("")}
+                className="text-xs text-muted-foreground hover:text-destructive"
+              >
+                Remover
+              </button>
+            )}
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function ProdutoRowItem({
@@ -69,6 +151,18 @@ function ProdutoRowItem({
               </option>
             ))}
           </select>
+          <select
+            name="destinoPreparo"
+            defaultValue={produto.destinoPreparo}
+            className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+          >
+            {DESTINO_OPTIONS.map((d) => (
+              <option key={d.value} value={d.value}>
+                {d.label}
+              </option>
+            ))}
+          </select>
+          <ImagemUrlField defaultValue={produto.imagemUrl} name="imagemUrl" />
           <div className="flex flex-col gap-2">
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" name="disponivel" defaultChecked={produto.disponivel} className="h-4 w-4 accent-primary" />
@@ -85,6 +179,7 @@ function ProdutoRowItem({
             </Button>
           </div>
           {updateState.error ? <p className="text-xs text-destructive sm:col-span-2">{updateState.error}</p> : null}
+          {updateState.success ? <p className="text-xs text-primary sm:col-span-2">{updateState.success}</p> : null}
         </form>
         <form action={deleteAction} className="mt-2">
           <Button type="submit" size="sm" variant="destructive" disabled={deletePending}>
@@ -125,6 +220,18 @@ export function ProdutosManager({ produtos, categorias }: ProdutosManagerProps) 
             </option>
           ))}
         </select>
+        <select
+          name="destinoPreparo"
+          defaultValue="NENHUM"
+          className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+        >
+          {DESTINO_OPTIONS.map((d) => (
+            <option key={d.value} value={d.value}>
+              {d.label}
+            </option>
+          ))}
+        </select>
+        <ImagemUrlField name="imagemUrl" />
         <div className="flex flex-col gap-2">
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="disponivel" defaultChecked className="h-4 w-4 accent-primary" />
@@ -142,6 +249,7 @@ export function ProdutosManager({ produtos, categorias }: ProdutosManagerProps) 
         {createState.success ? <p className="text-sm text-primary sm:col-span-2">{createState.success}</p> : null}
       </form>
 
+      <div className="w-full overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -162,6 +270,7 @@ export function ProdutosManager({ produtos, categorias }: ProdutosManagerProps) 
           )}
         </TableBody>
       </Table>
+      </div>
     </div>
   )
 }

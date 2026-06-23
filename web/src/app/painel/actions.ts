@@ -1,9 +1,11 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import bcrypt from "bcryptjs"
 
 import { requireLojista } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { notificarClientePedido } from "@/lib/notificacoes"
 
 export type ActionState = {
   error?: string
@@ -19,6 +21,8 @@ async function getLojaIdFromSession() {
   return session.lojaId
 }
 
+// ─── Aparência ────────────────────────────────────────────────────────────────
+
 export async function updateAparenciaAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   let lojaId: string
   try {
@@ -32,6 +36,9 @@ export async function updateAparenciaAction(_prev: ActionState, formData: FormDa
   const templateCardapio = getString(formData, "templateCardapio") || "CLASSICO"
   const paletaPreset = getString(formData, "paletaPreset") || null
   const texturaFundo = getString(formData, "texturaFundo") || "NENHUMA"
+  const logoUrl = getString(formData, "logoUrl") || null
+  const fontePreset = getString(formData, "fontePreset") || null
+  const subtituloCardapio = getString(formData, "subtituloCardapio") || null
 
   if (!nome || !corPrimaria) {
     return { error: "Preencha nome e cor primária." }
@@ -44,7 +51,10 @@ export async function updateAparenciaAction(_prev: ActionState, formData: FormDa
       corPrimaria,
       templateCardapio: templateCardapio as "CLASSICO" | "MODERNO" | "DARK",
       paletaPreset,
-      texturaFundo: texturaFundo as "NENHUMA" | "GRAIN" | "DOTS" | "WAVES",
+      texturaFundo: texturaFundo as "NENHUMA" | "GRAIN" | "DOTS" | "WAVES" | "STRIPES" | "CHECKS" | "CIRCLES" | "FOOD",
+      logoUrl,
+      fontePreset,
+      subtituloCardapio,
     },
   })
 
@@ -53,6 +63,85 @@ export async function updateAparenciaAction(_prev: ActionState, formData: FormDa
   revalidatePath(`/${loja.slug}`)
   return { success: "Aparência atualizada." }
 }
+
+// ─── Pagamentos ───────────────────────────────────────────────────────────────
+
+export async function updatePagamentosAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { error: "Acesso negado." }
+  }
+
+  const aceitaPixSite         = formData.get("aceitaPixSite") === "true"
+  const aceitaCartaoEntrega   = formData.get("aceitaCartaoEntrega") === "true"
+  const aceitaDinheiroEntrega = formData.get("aceitaDinheiroEntrega") === "true"
+  const pagamentoNoSite       = formData.get("pagamentoNoSite") === "true"
+  const pagamentoNaMesa       = formData.get("pagamentoNaMesa") === "true"
+
+  // Pelo menos um método de pagamento deve estar habilitado
+  if (!aceitaPixSite && !aceitaCartaoEntrega && !aceitaDinheiroEntrega) {
+    return { error: "Habilite ao menos um método de pagamento." }
+  }
+
+  // Se pagamento obrigatório no site, deve haver ao menos um método aceito online
+  if (pagamentoNoSite && !aceitaPixSite) {
+    return { error: "Para exigir pagamento no site, o PIX deve estar habilitado." }
+  }
+
+  const loja = await prisma.loja.update({
+    where: { id: lojaId },
+    data: {
+      aceitaPixSite,
+      aceitaCartaoEntrega,
+      aceitaDinheiroEntrega,
+      pagamentoNoSite,
+      pagamentoNaMesa,
+    },
+  })
+
+  revalidatePath("/painel/configuracoes")
+  revalidatePath(`/${loja.slug}/checkout`)
+  revalidatePath(`/${loja.slug}`)
+  return { success: "Configurações de pagamento salvas." }
+}
+
+// ─── Entrega ──────────────────────────────────────────────────────────────────
+
+export async function updateEntregaAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { error: "Acesso negado." }
+  }
+
+  const pedidoMinimoStr = getString(formData, "pedidoMinimo")
+  const taxaEntregaFixaStr = getString(formData, "taxaEntregaFixa")
+  const freteGratisAcimaStr = getString(formData, "freteGratisAcima")
+
+  const toDecimal = (v: string) => {
+    if (!v) return null
+    const n = parseFloat(v.replace(",", "."))
+    return Number.isFinite(n) && n >= 0 ? n : null
+  }
+
+  const pedidoMinimo = toDecimal(pedidoMinimoStr)
+  const taxaEntregaFixa = toDecimal(taxaEntregaFixaStr)
+  const freteGratisAcima = toDecimal(freteGratisAcimaStr)
+
+  const loja = await prisma.loja.update({
+    where: { id: lojaId },
+    data: { pedidoMinimo, taxaEntregaFixa, freteGratisAcima },
+  })
+
+  revalidatePath("/painel/configuracoes")
+  revalidatePath(`/${loja.slug}/checkout`)
+  return { success: "Configurações de entrega salvas." }
+}
+
+// ─── Categorias ───────────────────────────────────────────────────────────────
 
 export async function createCategoriaAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   let lojaId: string
@@ -130,6 +219,8 @@ export async function deleteCategoriaAction(
   return { success: "Categoria excluída." }
 }
 
+// ─── Produtos ─────────────────────────────────────────────────────────────────
+
 export async function createProdutoAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
   let lojaId: string
   try {
@@ -144,6 +235,8 @@ export async function createProdutoAction(_prev: ActionState, formData: FormData
   const categoriaId = getString(formData, "categoriaId")
   const disponivel = formData.get("disponivel") === "on"
   const emDestaque = formData.get("emDestaque") === "on"
+  const destinoPreparo = (getString(formData, "destinoPreparo") || "NENHUM") as "COZINHA" | "BAR" | "NENHUM"
+  const imagemUrl = getString(formData, "imagemUrl") || null
 
   if (!nome || !descricao || !categoriaId || !Number.isFinite(preco) || preco <= 0) {
     return { error: "Preencha todos os campos corretamente." }
@@ -157,7 +250,7 @@ export async function createProdutoAction(_prev: ActionState, formData: FormData
   const loja = await prisma.loja.findUnique({ where: { id: lojaId }, select: { slug: true } })
 
   await prisma.produto.create({
-    data: { lojaId, categoriaId, nome, descricao, preco, disponivel, emDestaque },
+    data: { lojaId, categoriaId, nome, descricao, preco, disponivel, emDestaque, destinoPreparo, imagemUrl },
   })
 
   revalidatePath("/painel/produtos")
@@ -183,6 +276,8 @@ export async function updateProdutoAction(
   const categoriaId = getString(formData, "categoriaId")
   const disponivel = formData.get("disponivel") === "on"
   const emDestaque = formData.get("emDestaque") === "on"
+  const destinoPreparo = (getString(formData, "destinoPreparo") || "NENHUM") as "COZINHA" | "BAR" | "NENHUM"
+  const imagemUrl = getString(formData, "imagemUrl") || null
 
   const produto = await prisma.produto.findFirst({
     where: { id: produtoId, lojaId },
@@ -198,7 +293,7 @@ export async function updateProdutoAction(
 
   await prisma.produto.update({
     where: { id: produtoId },
-    data: { nome, descricao, preco, categoriaId, disponivel, emDestaque },
+    data: { nome, descricao, preco, categoriaId, disponivel, emDestaque, destinoPreparo, imagemUrl },
   })
 
   revalidatePath("/painel/produtos")
@@ -233,14 +328,13 @@ export async function deleteProdutoAction(
 
 // ─── Pedidos (KDS) ────────────────────────────────────────────────────────────
 
-const ESTADOS_ORDENADOS = [
-  "NOVO",
-  "EM_PREPARACAO",
-  "PRONTO",
-  "EM_ENTREGA",
-  "CONCLUIDO",
-  "CANCELADO",
-] as const
+// Para delivery/balcão: avança até CONCLUIDO passando por EM_ENTREGA
+const ESTADOS_DELIVERY = ["NOVO", "EM_PREPARACAO", "PRONTO", "EM_ENTREGA", "CONCLUIDO", "CANCELADO"] as const
+// Para salão: KDS avança só até PRONTO; CONCLUIDO é exclusivo de fecharContaMesaAction
+const ESTADOS_SALAO   = ["NOVO", "EM_PREPARACAO", "PRONTO", "CANCELADO"] as const
+
+type EstadoDelivery = typeof ESTADOS_DELIVERY[number]
+type EstadoSalao = typeof ESTADOS_SALAO[number]
 
 export async function avancarPedidoAction(pedidoId: string): Promise<void> {
   let lojaId: string
@@ -255,16 +349,25 @@ export async function avancarPedidoAction(pedidoId: string): Promise<void> {
   })
   if (!pedido) return
 
-  const idx = ESTADOS_ORDENADOS.indexOf(pedido.estadoPedido as typeof ESTADOS_ORDENADOS[number])
-  if (idx === -1 || idx >= ESTADOS_ORDENADOS.length - 2) return
+  const isSalao = pedido.tipoEntrega === "SALAO_MESA"
 
-  const proximo = ESTADOS_ORDENADOS[idx + 1]
+  let proximo: string
+  if (isSalao) {
+    const idx = ESTADOS_SALAO.indexOf(pedido.estadoPedido as EstadoSalao)
+    if (idx === -1 || idx >= ESTADOS_SALAO.length - 2) return
+    proximo = ESTADOS_SALAO[idx + 1]
+  } else {
+    const idx = ESTADOS_DELIVERY.indexOf(pedido.estadoPedido as EstadoDelivery)
+    if (idx === -1 || idx >= ESTADOS_DELIVERY.length - 2) return
+    proximo = ESTADOS_DELIVERY[idx + 1]
+  }
 
   await prisma.pedido.update({
     where: { id: pedidoId },
-    data: { estadoPedido: proximo },
+    data: { estadoPedido: proximo as EstadoDelivery },
   })
 
+  await notificarClientePedido("STATUS", pedidoId)
   revalidatePath("/painel/pedidos")
 }
 
@@ -287,4 +390,444 @@ export async function cancelarPedidoAction(pedidoId: string): Promise<void> {
   })
 
   revalidatePath("/painel/pedidos")
+}
+
+// ─── Mesas ────────────────────────────────────────────────────────────────────
+
+export async function createMesaAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { error: "Acesso negado." }
+  }
+
+  const numero = getString(formData, "numero")
+  const nome = getString(formData, "nome") || null
+  const capacidade = formData.get("capacidade") ? Number(formData.get("capacidade")) : null
+
+  if (!numero) return { error: "Informe o número/identificador da mesa." }
+
+  const exists = await prisma.mesa.findFirst({ where: { lojaId, numero } })
+  if (exists) return { error: `Mesa "${numero}" já existe.` }
+
+  await prisma.mesa.create({
+    data: { lojaId, numero, nome, capacidade: capacidade && Number.isFinite(capacidade) ? capacidade : null },
+  })
+
+  revalidatePath("/painel/mesas")
+  return { success: "Mesa criada." }
+}
+
+export async function updateMesaAction(
+  mesaId: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { error: "Acesso negado." }
+  }
+
+  const numero = getString(formData, "numero")
+  const nome = getString(formData, "nome") || null
+  const ativa = formData.get("ativa") === "on"
+  const capacidade = formData.get("capacidade") ? Number(formData.get("capacidade")) : null
+
+  const mesa = await prisma.mesa.findFirst({ where: { id: mesaId, lojaId } })
+  if (!mesa) return { error: "Mesa não encontrada." }
+
+  const conflict = await prisma.mesa.findFirst({ where: { lojaId, numero, id: { not: mesaId } } })
+  if (conflict) return { error: `Mesa "${numero}" já existe.` }
+
+  await prisma.mesa.update({
+    where: { id: mesaId },
+    data: { numero, nome, ativa, capacidade: capacidade && Number.isFinite(capacidade) ? capacidade : null },
+  })
+
+  revalidatePath("/painel/mesas")
+  return { success: "Mesa atualizada." }
+}
+
+export async function deleteMesaAction(mesaId: string, _prev: ActionState = {}): Promise<ActionState> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { error: "Acesso negado." }
+  }
+
+  const mesa = await prisma.mesa.findFirst({ where: { id: mesaId, lojaId } })
+  if (!mesa) return { error: "Mesa não encontrada." }
+
+  await prisma.mesa.delete({ where: { id: mesaId } })
+  revalidatePath("/painel/mesas")
+  return { success: "Mesa excluída." }
+}
+
+// ─── Funcionários ─────────────────────────────────────────────────────────────
+
+export async function createFuncionarioAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { error: "Acesso negado." }
+  }
+
+  const nome = getString(formData, "nome")
+  const pin = getString(formData, "pin")
+
+  if (!nome) return { error: "Informe o nome do funcionário." }
+  if (!pin || pin.length < 4 || pin.length > 6 || !/^\d+$/.test(pin)) {
+    return { error: "O PIN deve ter 4 a 6 dígitos numéricos." }
+  }
+
+  const pinHash = await bcrypt.hash(pin, 10)
+  await prisma.funcionario.create({ data: { lojaId, nome, pin: pinHash } })
+
+  revalidatePath("/painel/funcionarios")
+  return { success: "Funcionário cadastrado." }
+}
+
+export async function updateFuncionarioAction(
+  funcionarioId: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { error: "Acesso negado." }
+  }
+
+  const nome = getString(formData, "nome")
+  const pin = getString(formData, "pin")
+  const ativo = formData.get("ativo") === "on"
+
+  const func = await prisma.funcionario.findFirst({ where: { id: funcionarioId, lojaId } })
+  if (!func) return { error: "Funcionário não encontrado." }
+
+  if (pin && (pin.length < 4 || pin.length > 6 || !/^\d+$/.test(pin))) {
+    return { error: "O PIN deve ter 4 a 6 dígitos numéricos." }
+  }
+
+  const pinHash = pin ? await bcrypt.hash(pin, 10) : undefined
+  await prisma.funcionario.update({
+    where: { id: funcionarioId },
+    data: { nome, ativo, ...(pinHash ? { pin: pinHash } : {}) },
+  })
+
+  revalidatePath("/painel/funcionarios")
+  return { success: "Funcionário atualizado." }
+}
+
+export async function deleteFuncionarioAction(
+  funcionarioId: string,
+  _prev: ActionState = {},
+): Promise<ActionState> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { error: "Acesso negado." }
+  }
+
+  const func = await prisma.funcionario.findFirst({ where: { id: funcionarioId, lojaId } })
+  if (!func) return { error: "Funcionário não encontrado." }
+
+  await prisma.funcionario.delete({ where: { id: funcionarioId } })
+  revalidatePath("/painel/funcionarios")
+  return { success: "Funcionário excluído." }
+}
+
+// ─── Adicionais ──────────────────────────────────────────────────────────────
+
+export async function createAdicionalAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { error: "Acesso negado." }
+  }
+
+  const nome = getString(formData, "nome")
+  const precoStr = getString(formData, "preco")
+  const disponivel = formData.get("disponivel") !== "false"
+
+  if (!nome) return { error: "Nome é obrigatório." }
+  const preco = parseFloat(precoStr.replace(",", "."))
+  if (isNaN(preco) || preco < 0) return { error: "Preço inválido." }
+
+  await prisma.adicional.create({ data: { lojaId, nome, preco, disponivel } })
+  revalidatePath("/painel/adicionais")
+  return { success: "Adicional criado." }
+}
+
+export async function updateAdicionalAction(
+  adicionalId: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { error: "Acesso negado." }
+  }
+
+  const adicional = await prisma.adicional.findFirst({ where: { id: adicionalId, lojaId } })
+  if (!adicional) return { error: "Adicional não encontrado." }
+
+  const nome = getString(formData, "nome")
+  const precoStr = getString(formData, "preco")
+  const disponivel = formData.get("disponivel") !== "false"
+
+  if (!nome) return { error: "Nome é obrigatório." }
+  const preco = parseFloat(precoStr.replace(",", "."))
+  if (isNaN(preco) || preco < 0) return { error: "Preço inválido." }
+
+  await prisma.adicional.update({ where: { id: adicionalId }, data: { nome, preco, disponivel } })
+  revalidatePath("/painel/adicionais")
+  return { success: "Adicional atualizado." }
+}
+
+export async function deleteAdicionalAction(
+  adicionalId: string,
+  _prev: ActionState = {},
+): Promise<ActionState> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { error: "Acesso negado." }
+  }
+
+  const adicional = await prisma.adicional.findFirst({ where: { id: adicionalId, lojaId } })
+  if (!adicional) return { error: "Adicional não encontrado." }
+
+  await prisma.adicional.delete({ where: { id: adicionalId } })
+  revalidatePath("/painel/adicionais")
+  return { success: "Adicional excluído." }
+}
+
+export async function toggleProdutoAdicionalAction(
+  produtoId: string,
+  adicionalId: string,
+  linked: boolean,
+): Promise<ActionState> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { error: "Acesso negado." }
+  }
+
+  const produto = await prisma.produto.findFirst({ where: { id: produtoId, lojaId } })
+  if (!produto) return { error: "Produto não encontrado." }
+
+  const adicional = await prisma.adicional.findFirst({ where: { id: adicionalId, lojaId } })
+  if (!adicional) return { error: "Adicional não encontrado." }
+
+  if (linked) {
+    await prisma.produtoAdicional.upsert({
+      where: { produtoId_adicionalId: { produtoId, adicionalId } },
+      create: { produtoId, adicionalId },
+      update: {},
+    })
+  } else {
+    await prisma.produtoAdicional.deleteMany({ where: { produtoId, adicionalId } })
+  }
+
+  revalidatePath("/painel/adicionais")
+  revalidatePath("/painel/produtos")
+  return { success: "Vínculo atualizado." }
+}
+
+// ─── Horários de funcionamento ───────────────────────────────────────────────
+
+const HORA_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/
+
+export async function updateHorariosAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { error: "Não autorizado." }
+  }
+
+  const upserts = []
+
+  for (let dia = 0; dia <= 6; dia++) {
+    const fechado = formData.get(`fechado_${dia}`) === "true"
+    const abreAs = getString(formData, `abre_${dia}`)
+    const fechaAs = getString(formData, `fecha_${dia}`)
+
+    if (!fechado) {
+      if (!HORA_REGEX.test(abreAs) || !HORA_REGEX.test(fechaAs)) {
+        const nomes = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"]
+        return { error: `Horário inválido em ${nomes[dia]}. Use o formato HH:MM.` }
+      }
+    }
+
+    upserts.push(
+      prisma.horarioFuncionamento.upsert({
+        where: { lojaId_diaSemana: { lojaId, diaSemana: dia } },
+        create: {
+          lojaId,
+          diaSemana: dia,
+          abreAs: fechado ? "00:00" : abreAs,
+          fechaAs: fechado ? "00:00" : fechaAs,
+          fechado,
+        },
+        update: {
+          abreAs: fechado ? "00:00" : abreAs,
+          fechaAs: fechado ? "00:00" : fechaAs,
+          fechado,
+        },
+      }),
+    )
+  }
+
+  await Promise.all(upserts)
+
+  revalidatePath("/painel/configuracoes")
+  return { success: "Horários salvos com sucesso." }
+}
+
+// ─── Cupons ───────────────────────────────────────────────────────────────────
+
+function parseCupomFormData(formData: FormData) {
+  const codigo = getString(formData, "codigo").toUpperCase().replace(/\s/g, "")
+  const tipo = getString(formData, "tipo") as "PERCENTUAL" | "VALOR_FIXO"
+  const valorStr = getString(formData, "valor")
+  const pedidoMinimoStr = getString(formData, "pedidoMinimo")
+  const maxUsosStr = getString(formData, "maxUsos")
+  const validoDeStr = getString(formData, "validoDe")
+  const validoAteStr = getString(formData, "validoAte")
+  const ativo = formData.get("ativo") !== "false"
+
+  if (!codigo) return { error: "Código do cupom é obrigatório." }
+  if (!["PERCENTUAL", "VALOR_FIXO"].includes(tipo)) return { error: "Tipo inválido." }
+
+  const valor = parseFloat(valorStr.replace(",", "."))
+  if (isNaN(valor) || valor <= 0) return { error: "Valor inválido." }
+  if (tipo === "PERCENTUAL" && valor > 100) return { error: "Desconto percentual não pode exceder 100%." }
+
+  const pedidoMinimo = pedidoMinimoStr
+    ? (() => { const n = parseFloat(pedidoMinimoStr.replace(",", ".")); return Number.isFinite(n) && n >= 0 ? n : null })()
+    : null
+  const maxUsos = maxUsosStr ? (parseInt(maxUsosStr) || null) : null
+  const validoDe = validoDeStr ? new Date(validoDeStr) : null
+  const validoAte = validoAteStr ? new Date(validoAteStr) : null
+
+  return { codigo, tipo, valor, pedidoMinimo, maxUsos, validoDe, validoAte, ativo }
+}
+
+export async function createCupomAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { error: "Acesso negado." }
+  }
+
+  const parsed = parseCupomFormData(formData)
+  if ("error" in parsed) return { error: parsed.error }
+
+  const exists = await prisma.cupom.findFirst({ where: { lojaId, codigo: parsed.codigo } })
+  if (exists) return { error: `Cupom "${parsed.codigo}" já existe nesta loja.` }
+
+  await prisma.cupom.create({
+    data: {
+      lojaId,
+      codigo: parsed.codigo,
+      tipo: parsed.tipo,
+      valor: parsed.valor,
+      pedidoMinimo: parsed.pedidoMinimo,
+      maxUsos: parsed.maxUsos,
+      validoDe: parsed.validoDe,
+      validoAte: parsed.validoAte,
+      ativo: parsed.ativo,
+    },
+  })
+
+  revalidatePath("/painel/cupons")
+  return { success: `Cupom "${parsed.codigo}" criado.` }
+}
+
+export async function updateCupomAction(
+  cupomId: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { error: "Acesso negado." }
+  }
+
+  const cupom = await prisma.cupom.findFirst({ where: { id: cupomId, lojaId } })
+  if (!cupom) return { error: "Cupom não encontrado." }
+
+  const parsed = parseCupomFormData(formData)
+  if ("error" in parsed) return { error: parsed.error }
+
+  const conflict = await prisma.cupom.findFirst({
+    where: { lojaId, codigo: parsed.codigo, id: { not: cupomId } },
+  })
+  if (conflict) return { error: `Código "${parsed.codigo}" já está em uso por outro cupom.` }
+
+  await prisma.cupom.update({
+    where: { id: cupomId },
+    data: {
+      codigo: parsed.codigo,
+      tipo: parsed.tipo,
+      valor: parsed.valor,
+      pedidoMinimo: parsed.pedidoMinimo,
+      maxUsos: parsed.maxUsos,
+      validoDe: parsed.validoDe,
+      validoAte: parsed.validoAte,
+      ativo: parsed.ativo,
+    },
+  })
+
+  revalidatePath("/painel/cupons")
+  return { success: "Cupom atualizado." }
+}
+
+export async function toggleCupomAction(cupomId: string, ativo: boolean): Promise<ActionState> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { error: "Acesso negado." }
+  }
+
+  const cupom = await prisma.cupom.findFirst({ where: { id: cupomId, lojaId } })
+  if (!cupom) return { error: "Cupom não encontrado." }
+
+  await prisma.cupom.update({ where: { id: cupomId }, data: { ativo } })
+  revalidatePath("/painel/cupons")
+  return { success: ativo ? "Cupom ativado." : "Cupom desativado." }
+}
+
+export async function deleteCupomAction(cupomId: string, _prev: ActionState = {}): Promise<ActionState> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { error: "Acesso negado." }
+  }
+
+  const cupom = await prisma.cupom.findFirst({ where: { id: cupomId, lojaId } })
+  if (!cupom) return { error: "Cupom não encontrado." }
+
+  await prisma.cupom.delete({ where: { id: cupomId } })
+  revalidatePath("/painel/cupons")
+  return { success: "Cupom excluído." }
 }

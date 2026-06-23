@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation"
 
 import { prisma } from "@/lib/prisma"
+import { lojaEstaAberta } from "@/lib/loja-config"
 import { CartProvider } from "./carrinho/cart-context"
 import { ClassicoTemplate } from "./cardapio/classico-template"
 import { ModernoTemplate } from "./cardapio/moderno-template"
@@ -9,10 +10,21 @@ import type { LojaCardapio } from "./cardapio/types"
 
 type PageProps = {
   params: Promise<{ slug: string }>
+  searchParams: Promise<{
+    _preview?: string
+    _cor?: string
+    _template?: string
+    _textura?: string
+    _fonte?: string
+    _logo?: string
+    _subtitulo?: string
+  }>
 }
 
-export default async function CardapioPage({ params }: PageProps) {
+export default async function CardapioPage({ params, searchParams }: PageProps) {
   const { slug } = await params
+  const sp = await searchParams
+  const isPreview = sp._preview === "1"
 
   const loja = await prisma.loja.findFirst({
     where: { slug, ativa: true },
@@ -26,6 +38,7 @@ export default async function CardapioPage({ params }: PageProps) {
           },
         },
       },
+      horarios: { orderBy: { diaSemana: "asc" } },
     },
   })
 
@@ -33,13 +46,27 @@ export default async function CardapioPage({ params }: PageProps) {
     notFound()
   }
 
+  const statusLoja = lojaEstaAberta({
+    timezone: loja.timezone,
+    horarios: loja.horarios,
+  })
+
   const lojaData: LojaCardapio = {
     id: loja.id,
     nome: loja.nome,
     slug: loja.slug,
-    corPrimaria: loja.corPrimaria,
+    subtituloCardapio:
+      isPreview && sp._subtitulo !== undefined
+        ? (sp._subtitulo || null)
+        : loja.subtituloCardapio ?? null,
+    corPrimaria: isPreview && sp._cor ? sp._cor : loja.corPrimaria,
     paletaPreset: loja.paletaPreset,
-    texturaFundo: loja.texturaFundo as LojaCardapio["texturaFundo"],
+    texturaFundo: (isPreview && sp._textura ? sp._textura : loja.texturaFundo) as LojaCardapio["texturaFundo"],
+    logoUrl: isPreview && sp._logo !== undefined ? (sp._logo || null) : loja.logoUrl,
+    fontePreset: isPreview && sp._fonte ? sp._fonte : loja.fontePreset,
+    lojaFechada: !statusLoja.aberta,
+    mensagemFechada: statusLoja.mensagem,
+    proximaAbertura: statusLoja.proximaAbertura,
     categorias: loja.categorias.map((cat) => ({
       id: cat.id,
       nome: cat.nome,
@@ -52,11 +79,12 @@ export default async function CardapioPage({ params }: PageProps) {
         imagemUrl: p.imagemUrl,
         disponivel: p.disponivel,
         emDestaque: p.emDestaque,
+        destinoPreparo: p.destinoPreparo as "COZINHA" | "BAR" | "NENHUM",
       })),
     })),
   }
 
-  const template = loja.templateCardapio
+  const template = isPreview && sp._template ? sp._template : loja.templateCardapio
 
   return (
     <CartProvider slug={slug}>

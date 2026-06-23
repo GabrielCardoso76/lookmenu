@@ -21,7 +21,11 @@ async function main() {
 
   const loja = await prisma.loja.upsert({
     where: { slug: "burger-king-demo" },
-    update: {},
+    update: {
+      pedidoMinimo: 25,
+      taxaEntregaFixa: 8,
+      freteGratisAcima: 80,
+    },
     create: {
       nome: "Burger King Demo",
       slug: "burger-king-demo",
@@ -32,6 +36,10 @@ async function main() {
       templateCardapio: "CLASSICO",
       paletaPreset: "custom",
       texturaFundo: "NENHUMA",
+      fontePreset: "Poppins",
+      pedidoMinimo: 25,
+      taxaEntregaFixa: 8,
+      freteGratisAcima: 80,
     },
   })
 
@@ -60,6 +68,7 @@ async function main() {
         preco: 32.9,
         disponivel: true,
         emDestaque: true,
+        destinoPreparo: "COZINHA",
       },
       {
         lojaId: loja.id,
@@ -69,6 +78,7 @@ async function main() {
         preco: 24.9,
         disponivel: true,
         emDestaque: false,
+        destinoPreparo: "COZINHA",
       },
       {
         lojaId: loja.id,
@@ -77,6 +87,7 @@ async function main() {
         descricao: "Porção média de batatas fritas crocantes.",
         preco: 12.9,
         disponivel: true,
+        destinoPreparo: "COZINHA",
       },
       {
         lojaId: loja.id,
@@ -85,6 +96,7 @@ async function main() {
         descricao: "350ml — Coca-Cola, Guaraná ou Sprite.",
         preco: 7.9,
         disponivel: true,
+        destinoPreparo: "BAR",
       },
       {
         lojaId: loja.id,
@@ -94,7 +106,34 @@ async function main() {
         preco: 15.9,
         disponivel: true,
         emDestaque: true,
+        destinoPreparo: "BAR",
       },
+    ],
+  })
+
+  // Mesas demo
+  await prisma.mesa.deleteMany({ where: { lojaId: loja.id } })
+  await prisma.mesa.createMany({
+    data: [
+      { lojaId: loja.id, numero: "01", nome: "Entrada", capacidade: 4, ativa: true },
+      { lojaId: loja.id, numero: "02", capacidade: 2, ativa: true },
+      { lojaId: loja.id, numero: "03", capacidade: 4, ativa: true },
+      { lojaId: loja.id, numero: "04", nome: "Varanda", capacidade: 6, ativa: true },
+      { lojaId: loja.id, numero: "05", capacidade: 4, ativa: true },
+      { lojaId: loja.id, numero: "06", capacidade: 2, ativa: false },
+    ],
+  })
+
+  // Funcionários demo (PINs hasheados com bcrypt)
+  await prisma.funcionario.deleteMany({ where: { lojaId: loja.id } })
+  const [pin1234, pin5678] = await Promise.all([
+    bcrypt.hash("1234", 10),
+    bcrypt.hash("5678", 10),
+  ])
+  await prisma.funcionario.createMany({
+    data: [
+      { lojaId: loja.id, nome: "João Garçom", pin: pin1234, ativo: true },
+      { lojaId: loja.id, nome: "Maria Atendente", pin: pin5678, ativo: true },
     ],
   })
 
@@ -139,9 +178,43 @@ async function main() {
     },
   })
 
+  // Horários de funcionamento demo
+  await prisma.horarioFuncionamento.deleteMany({ where: { lojaId: loja.id } })
+  await prisma.horarioFuncionamento.createMany({
+    data: [
+      { lojaId: loja.id, diaSemana: 0, abreAs: "12:00", fechaAs: "22:00", fechado: true },  // Domingo — fechado
+      { lojaId: loja.id, diaSemana: 1, abreAs: "11:00", fechaAs: "23:00", fechado: false }, // Segunda
+      { lojaId: loja.id, diaSemana: 2, abreAs: "11:00", fechaAs: "23:00", fechado: false }, // Terça
+      { lojaId: loja.id, diaSemana: 3, abreAs: "11:00", fechaAs: "23:00", fechado: false }, // Quarta
+      { lojaId: loja.id, diaSemana: 4, abreAs: "11:00", fechaAs: "23:00", fechado: false }, // Quinta
+      { lojaId: loja.id, diaSemana: 5, abreAs: "11:00", fechaAs: "00:00", fechado: false }, // Sexta (fecha meia-noite — sem cruzar dia)
+      { lojaId: loja.id, diaSemana: 6, abreAs: "12:00", fechaAs: "22:00", fechado: false }, // Sábado
+    ],
+  })
+
+  // Cupom demo
+  await prisma.cupom.upsert({
+    where: { lojaId_codigo: { lojaId: loja.id, codigo: "DEMO10" } },
+    update: {},
+    create: {
+      lojaId: loja.id,
+      codigo: "DEMO10",
+      tipo: "PERCENTUAL",
+      valor: 10,
+      pedidoMinimo: 30,
+      maxUsos: 100,
+      usosAtuais: 0,
+      ativo: true,
+    },
+  })
+
   console.log(`Seed OK: loja "${loja.slug}" em http://localhost:3000/${loja.slug}`)
   console.log(`Super admin: ${superAdminEmail} / ${superAdminPassword}`)
   console.log(`Lojista demo: ${lojistaEmail} / ${lojistaPassword}`)
+  console.log(`App garçom: http://localhost:3000/${loja.slug}/atendimento`)
+  console.log(`  João Garçom — PIN: 1234`)
+  console.log(`  Maria Atendente — PIN: 5678`)
+  console.log(`Financeiro: http://localhost:3000/painel/financeiro`)
 }
 
 main()

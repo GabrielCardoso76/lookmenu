@@ -5,19 +5,35 @@ import { Plus, Star } from "lucide-react"
 import { useCart } from "../carrinho/cart-context"
 import { CartBar } from "../carrinho/cart-drawer"
 import type { LojaCardapio } from "./types"
+import { FonteLink, getFontFamily } from "./fonte-utils"
 
 function formatPreco(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+}
+
+function texturaClass(textura: LojaCardapio["texturaFundo"]) {
+  switch (textura) {
+    case "GRAIN":    return "bg-grain"
+    case "DOTS":     return "bg-dots"
+    case "WAVES":    return "bg-waves"
+    case "STRIPES":  return "bg-stripes"
+    case "CHECKS":   return "bg-checks"
+    case "CIRCLES":  return "bg-circles"
+    case "FOOD":     return "bg-food"
+    default:         return ""
+  }
 }
 
 function ProdutoCard({
   produto,
   corPrimaria,
   destaque,
+  lojaFechada,
 }: {
   produto: LojaCardapio["categorias"][0]["produtos"][0]
   corPrimaria: string
   destaque?: boolean
+  lojaFechada?: boolean
 }) {
   const { add } = useCart()
 
@@ -50,8 +66,9 @@ function ProdutoCard({
         </div>
       )}
       <button
-        onClick={() => add({ id: produto.id, nome: produto.nome, preco: produto.preco })}
-        className="shrink-0 flex h-9 w-9 items-center justify-center rounded-full text-white shadow-md transition-transform active:scale-90 hover:opacity-90"
+        onClick={() => !lojaFechada && add({ id: produto.id, nome: produto.nome, preco: produto.preco })}
+        disabled={lojaFechada}
+        className="shrink-0 flex h-9 w-9 items-center justify-center rounded-full text-white shadow-md transition-transform active:scale-90 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         style={{ backgroundColor: corPrimaria }}
         aria-label={`Adicionar ${produto.nome}`}
       >
@@ -62,11 +79,15 @@ function ProdutoCard({
 }
 
 export function ModernoTemplate({ loja }: { loja: LojaCardapio }) {
-  const { corPrimaria } = loja
+  const { corPrimaria, texturaFundo } = loja
+  const subtitulo = loja.subtituloCardapio ?? "Cardápio Digital"
   const destaques = loja.categorias.flatMap((c) => c.produtos.filter((p) => p.emDestaque))
+  const fontFamily = getFontFamily(loja.fontePreset)
+  const fechada = loja.lojaFechada ?? false
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-28">
+    <div className={`cardapio-light min-h-screen bg-gray-50 ${texturaClass(texturaFundo)} pb-28`} style={{ fontFamily }}>
+      <FonteLink fonte={loja.fontePreset} />
       {/* Hero header */}
       <div
         className="relative overflow-hidden px-6 py-10 text-white"
@@ -75,11 +96,30 @@ export function ModernoTemplate({ loja }: { loja: LojaCardapio }) {
         <div className="absolute inset-0 opacity-10" style={{
           backgroundImage: `radial-gradient(circle at 80% 20%, white 0%, transparent 60%)`,
         }} />
-        <div className="relative mx-auto max-w-3xl">
-          <p className="text-sm font-medium uppercase tracking-widest opacity-80">Cardápio Digital</p>
-          <h1 className="mt-1 text-3xl font-extrabold tracking-tight">{loja.nome}</h1>
+        <div className="relative mx-auto max-w-3xl flex items-center gap-4">
+          {loja.logoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={loja.logoUrl}
+              alt={`Logo ${loja.nome}`}
+              className="h-14 w-14 rounded-xl object-contain bg-white/20 p-1.5 shrink-0"
+            />
+          )}
+          <div>
+            <p className="text-sm font-medium uppercase tracking-widest opacity-80">{subtitulo}</p>
+            <h1 className="mt-0.5 text-3xl font-extrabold tracking-tight">{loja.nome}</h1>
+          </div>
         </div>
       </div>
+
+      {fechada && (
+        <div className="mx-auto max-w-3xl px-4 pt-6">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <p className="font-semibold">Estamos fechados no momento</p>
+            {loja.mensagemFechada && <p className="mt-0.5 text-amber-700">{loja.mensagemFechada}</p>}
+          </div>
+        </div>
+      )}
 
       <main className="mx-auto max-w-3xl space-y-10 px-4 py-8">
         {destaques.length > 0 && (
@@ -89,7 +129,7 @@ export function ModernoTemplate({ loja }: { loja: LojaCardapio }) {
             </h2>
             <div className="space-y-3">
               {destaques.map((produto) => (
-                <ProdutoCard key={produto.id} produto={produto} corPrimaria={corPrimaria} destaque />
+                <ProdutoCard key={produto.id} produto={produto} corPrimaria={corPrimaria} destaque lojaFechada={fechada} />
               ))}
             </div>
           </section>
@@ -105,7 +145,7 @@ export function ModernoTemplate({ loja }: { loja: LojaCardapio }) {
             ) : (
               <div className="space-y-3">
                 {categoria.produtos.map((produto) => (
-                  <ProdutoCard key={produto.id} produto={produto} corPrimaria={corPrimaria} />
+                  <ProdutoCard key={produto.id} produto={produto} corPrimaria={corPrimaria} lojaFechada={fechada} />
                 ))}
               </div>
             )}

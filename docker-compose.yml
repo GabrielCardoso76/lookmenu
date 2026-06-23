@@ -1,0 +1,34 @@
+services:
+  evolution-api:
+    image: atendai/evolution-api:v2.2.3
+    container_name: lookmenu-evolution
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - evolution_instances:/evolution/instances
+    environment:
+      # URL pública da API (ajuste em produção)
+      SERVER_URL: "http://localhost:8080"
+
+      # Autenticação — deve coincidir com EVOLUTION_API_KEY no .env do Next.js
+      AUTHENTICATION_TYPE: "apikey"
+      AUTHENTICATION_API_KEY: "change-this-evolution-key"
+
+      # Criação de instâncias via API (necessário para criar pelo painel)
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "true"
+
+      # Armazenamento local (sem Redis/DB externo para dev)
+      DATABASE_ENABLED: "false"
+      CACHE_REDIS_ENABLED: "false"
+
+      # Limpeza automática — false para não deletar instâncias desconectadas
+      DEL_INSTANCE: "false"
+
+      # Logs
+      LOG_LEVEL: "ERROR"
+      LOG_COLOR: "true"
+
+volumes:
+  evolution_instances:
+    name: lookmenu_evolution_instances

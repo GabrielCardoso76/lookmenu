@@ -2,34 +2,32 @@ import Link from "next/link"
 
 import { logoutAction } from "@/app/login/actions"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
+import { DashboardMobileNav, DashboardSidebar, type DashboardNavItem } from "@/components/dashboard-nav"
 import type { SessionUser } from "@/lib/session"
-
-type NavItem = {
-  href: string
-  label: string
-}
 
 type DashboardShellProps = {
   user: SessionUser
   title: string
-  nav: NavItem[]
+  nav: DashboardNavItem[]
   children: React.ReactNode
 }
 
 export function DashboardShell({ user, title, nav, children }: DashboardShellProps) {
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <div>
-            <Link href="/" className="text-sm text-muted-foreground hover:text-primary">
-              LookMenu
-            </Link>
-            <h1 className="text-xl font-semibold">{title}</h1>
+    <div className="flex min-h-screen flex-col bg-background">
+      <header className="w-full shrink-0 border-b border-border">
+        <div className="flex items-center justify-between px-4 py-3 md:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <DashboardMobileNav nav={nav} />
+            <div className="min-w-0">
+              <Link href="/" className="text-sm text-gray-500 hover:text-primary">
+                LookMenu
+              </Link>
+              <h1 className="truncate text-lg font-semibold md:text-xl">{title}</h1>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-muted-foreground sm:inline">{user.nome}</span>
+          <div className="flex shrink-0 items-center gap-3">
+            <span className="hidden text-sm text-gray-600 sm:inline">{user.nome}</span>
             <form action={logoutAction}>
               <Button type="submit" variant="outline" size="sm">
                 Sair
@@ -39,24 +37,11 @@ export function DashboardShell({ user, title, nav, children }: DashboardShellPro
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-6xl gap-8 px-4 py-8">
-        <aside className="hidden w-48 shrink-0 md:block">
-          <nav className="space-y-1">
-            {nav.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="block rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        </aside>
+      <div className="flex flex-1">
+        <DashboardSidebar nav={nav} />
 
-        <main className="min-w-0 flex-1">
-          <Separator className="mb-6 md:hidden" />
-          {children}
+        <main className="min-w-0 flex-1 px-6 py-6 md:px-8 md:py-8">
+          <div className="mx-auto w-full max-w-[1600px]">{children}</div>
         </main>
       </div>
     </div>

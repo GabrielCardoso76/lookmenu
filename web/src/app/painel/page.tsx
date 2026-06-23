@@ -7,14 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { DashboardShell } from "@/components/dashboard-shell"
 import { getSession } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-
-const PAINEL_NAV = [
-  { href: "/painel", label: "Início" },
-  { href: "/painel/pedidos", label: "Pedidos" },
-  { href: "/painel/categorias", label: "Categorias" },
-  { href: "/painel/produtos", label: "Produtos" },
-  { href: "/painel/aparencia", label: "Aparência" },
-]
+import { PAINEL_NAV } from "@/app/painel/nav"
 
 function formatPreco(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
@@ -91,8 +84,8 @@ export default async function PainelDashboardPage() {
 
   return (
     <DashboardShell user={session} title="Painel da loja" nav={PAINEL_NAV}>
-      <div className="mb-6">
-        <h2 className="text-2xl font-semibold">{loja.nome}</h2>
+      <div className="mb-5">
+        <h2 className="text-2xl font-semibold md:text-3xl">{loja.nome}</h2>
         <p className="text-sm text-muted-foreground">
           Cardápio público:{" "}
           <Link href={`/${loja.slug}`} className="text-primary hover:underline" target="_blank">
@@ -101,8 +94,8 @@ export default async function PainelDashboardPage() {
         </p>
       </div>
 
-      {/* Resumo do dia */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Resumo + atalhos */}
+      <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-7">
         <Card>
           <CardHeader className="pb-1">
             <CardDescription>Pedidos hoje</CardDescription>
@@ -150,14 +143,11 @@ export default async function PainelDashboardPage() {
             </Button>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Links rápidos */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <Card>
-          <CardHeader>
-            <CardTitle>{loja._count.categorias}</CardTitle>
+          <CardHeader className="pb-1">
             <CardDescription>Categorias</CardDescription>
+            <CardTitle className="text-3xl">{loja._count.categorias}</CardTitle>
           </CardHeader>
           <CardContent>
             <Button asChild variant="outline" size="sm">
@@ -165,16 +155,17 @@ export default async function PainelDashboardPage() {
             </Button>
           </CardContent>
         </Card>
+
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+          <CardHeader className="pb-1">
+            <CardDescription>Cor do cardápio</CardDescription>
+            <CardTitle className="flex items-center gap-2 text-xl">
               <span
                 className="inline-block h-6 w-6 rounded-full border border-border"
                 style={{ backgroundColor: loja.corPrimaria }}
               />
-              Cor
+              {loja.corPrimaria}
             </CardTitle>
-            <CardDescription>{loja.corPrimaria}</CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild variant="outline" size="sm">
@@ -182,10 +173,11 @@ export default async function PainelDashboardPage() {
             </Button>
           </CardContent>
         </Card>
+
         <Card>
-          <CardHeader>
-            <CardTitle className="capitalize">{loja.templateCardapio.toLowerCase()}</CardTitle>
+          <CardHeader className="pb-1">
             <CardDescription>Template ativo</CardDescription>
+            <CardTitle className="text-xl capitalize">{loja.templateCardapio.toLowerCase()}</CardTitle>
           </CardHeader>
           <CardContent>
             <Button asChild variant="outline" size="sm">
@@ -198,11 +190,60 @@ export default async function PainelDashboardPage() {
       {/* Últimos pedidos */}
       {ultimosPedidos.length > 0 && (
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <CardTitle>Últimos 10 pedidos</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
+          <CardContent className="p-0 sm:p-6 sm:pt-0">
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left">
+                    <th className="px-4 py-3 font-semibold text-muted-foreground">Pedido</th>
+                    <th className="px-4 py-3 font-semibold text-muted-foreground">Cliente</th>
+                    <th className="px-4 py-3 font-semibold text-muted-foreground">Status</th>
+                    <th className="px-4 py-3 font-semibold text-muted-foreground">Tipo</th>
+                    <th className="px-4 py-3 font-semibold text-muted-foreground">Pagamento</th>
+                    <th className="px-4 py-3 font-semibold text-muted-foreground text-right">Total</th>
+                    <th className="px-4 py-3 font-semibold text-muted-foreground text-right">Hora</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {ultimosPedidos.map((p) => (
+                    <tr key={p.id} className="hover:bg-muted/20">
+                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                        #{p.id.slice(-6).toUpperCase()}
+                      </td>
+                      <td className="px-4 py-3 font-medium">{p.nomeCliente ?? "—"}</td>
+                      <td className="px-4 py-3">
+                        <Badge variant="outline" className="text-xs">
+                          {ESTADO_LABEL[p.estadoPedido] ?? p.estadoPedido}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {p.tipoEntrega === "DELIVERY" ? "Delivery" : p.tipoEntrega === "SALAO_MESA" ? "Salão" : "Retirada"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">{PAGAMENTO_LABEL[p.metodoPagamento]}</span>
+                          <Badge
+                            variant={p.estadoPagamento === "PAGO" ? "default" : "secondary"}
+                            className="text-xs"
+                          >
+                            {p.estadoPagamento === "PAGO" ? "Pago" : "Pendente"}
+                          </Badge>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold">{formatPreco(Number(p.total))}</td>
+                      <td className="px-4 py-3 text-right text-muted-foreground">
+                        {new Date(p.criadoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="space-y-2 p-4 md:hidden">
               {ultimosPedidos.map((p) => (
                 <div
                   key={p.id}

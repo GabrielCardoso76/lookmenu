@@ -15,6 +15,155 @@
   .squircle-lg {
     border-radius: 28% / 28%;
   }
+
+  /* Cardápio background textures */
+  .bg-grain {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23noise)' opacity='0.06'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 200px 200px;
+  }
+
+  .bg-dots {
+    background-image: radial-gradient(circle, rgba(0, 0, 0, 0.07) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  .bg-waves {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 6px,
+      rgba(0, 0, 0, 0.04) 6px,
+      rgba(0, 0, 0, 0.04) 7px
+    );
+  }
+
+  /* Dark template variants — lighter so visible on dark bg */
+  .bg-grain-dark {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23noise)' opacity='0.12'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 200px 200px;
+  }
+
+  .bg-dots-dark {
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  .bg-waves-dark {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 6px,
+      rgba(255, 255, 255, 0.04) 6px,
+      rgba(255, 255, 255, 0.04) 7px
+    );
+  }
+
+  /* Light surfaces inside the dark admin panel */
+  .surface-light {
+    background-color: #ffffff;
+    color: #111827;
+  }
+  .surface-light-muted {
+    color: #4b5563;
+  }
+  .surface-light .text-muted-foreground {
+    color: #4b5563;
+  }
+  .surface-light thead {
+    background-color: #f3f4f6;
+  }
+  .surface-light thead .text-muted-foreground {
+    color: #374151;
+  }
+
+  /* ── Cardápio pages: override dark theme vars to light mode ── */
+  .cardapio-light {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
+    --border: 0 0% 89%;
+    --input: 0 0% 89%;
+  }
+
+  /* ── New background textures (light variants) ── */
+  .bg-stripes {
+    background-image: repeating-linear-gradient(
+      60deg,
+      transparent,
+      transparent 10px,
+      rgba(0, 0, 0, 0.035) 10px,
+      rgba(0, 0, 0, 0.035) 12px
+    );
+  }
+
+  .bg-checks {
+    background-image:
+      linear-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .bg-circles {
+    background-image: radial-gradient(
+      circle at 50% 50%,
+      transparent 8px,
+      rgba(0, 0, 0, 0.05) 8px,
+      rgba(0, 0, 0, 0.05) 9px,
+      transparent 9px
+    );
+    background-size: 28px 28px;
+  }
+
+  .bg-food {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cpath d='M40 16 C26 16 14 24 14 33 L66 33 C66 24 54 16 40 16Z' fill='rgba(0,0,0,0.06)'/%3E%3Crect x='14' y='35' width='52' height='5' rx='2.5' fill='rgba(0,0,0,0.04)'/%3E%3Crect x='14' y='42' width='52' height='5' rx='2.5' fill='rgba(0,0,0,0.06)'/%3E%3Crect x='14' y='49' width='52' height='9' rx='4' fill='rgba(0,0,0,0.06)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 80px 80px;
+  }
+
+  /* ── New background textures (dark variants) ── */
+  .bg-stripes-dark {
+    background-image: repeating-linear-gradient(
+      60deg,
+      transparent,
+      transparent 10px,
+      rgba(255, 255, 255, 0.04) 10px,
+      rgba(255, 255, 255, 0.04) 12px
+    );
+  }
+
+  .bg-checks-dark {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .bg-circles-dark {
+    background-image: radial-gradient(
+      circle at 50% 50%,
+      transparent 8px,
+      rgba(255, 255, 255, 0.07) 8px,
+      rgba(255, 255, 255, 0.07) 9px,
+      transparent 9px
+    );
+    background-size: 28px 28px;
+  }
+
+  .bg-food-dark {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cpath d='M40 16 C26 16 14 24 14 33 L66 33 C66 24 54 16 40 16Z' fill='rgba(255,255,255,0.07)'/%3E%3Crect x='14' y='35' width='52' height='5' rx='2.5' fill='rgba(255,255,255,0.05)'/%3E%3Crect x='14' y='42' width='52' height='5' rx='2.5' fill='rgba(255,255,255,0.07)'/%3E%3Crect x='14' y='49' width='52' height='9' rx='4' fill='rgba(255,255,255,0.07)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 80px 80px;
+  }
 }
 
 @layer base {
