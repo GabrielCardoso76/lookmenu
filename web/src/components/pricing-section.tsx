@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollReveal } from "./scroll-reveal"
@@ -84,6 +85,7 @@ export function PricingSection() {
                 </ul>
 
                 <Button
+                  asChild
                   className={`mt-8 w-full rounded-2xl ${
                     plan.featured
                       ? "bg-primary font-semibold text-primary-foreground hover:bg-primary/90"
@@ -91,7 +93,7 @@ export function PricingSection() {
                   }`}
                   size="lg"
                 >
-                  Fale com nosso time
+                  <Link href={`/comecar?plano=${plan.name.toLowerCase()}`}>Fale com nosso time</Link>
                 </Button>
               </div>
             </ScrollReveal>

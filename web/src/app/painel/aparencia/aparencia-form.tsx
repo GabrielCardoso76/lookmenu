@@ -15,6 +15,7 @@ type PreviewState = {
   fonte: string
   logoUrl: string
   subtitulo: string
+  tituloAba: string
 }
 
 type AparenciaFormProps = {
@@ -28,6 +29,7 @@ type AparenciaFormProps = {
     logoUrl: string | null
     fontePreset: string | null
     subtituloCardapio: string | null
+    tituloAba: string | null
   }
   onPreviewChange?: (state: PreviewState) => void
 }
@@ -95,6 +97,7 @@ export function AparenciaForm({ loja, onPreviewChange }: AparenciaFormProps) {
 
   const [nome, setNome] = useState(loja.nome)
   const [subtitulo, setSubtitulo] = useState(loja.subtituloCardapio ?? "")
+  const [tituloAba, setTituloAba] = useState(loja.tituloAba ?? "")
   const [corPrimaria, setCorPrimaria] = useState(loja.corPrimaria)
   const [template, setTemplate] = useState(loja.templateCardapio || "CLASSICO")
   const [paleta, setPaleta] = useState(loja.paletaPreset || "custom")
@@ -110,6 +113,7 @@ export function AparenciaForm({ loja, onPreviewChange }: AparenciaFormProps) {
       fonte,
       logoUrl,
       subtitulo,
+      tituloAba,
       ...overrides,
     })
   }
@@ -168,6 +172,25 @@ export function AparenciaForm({ loja, onPreviewChange }: AparenciaFormProps) {
           onChange={(e) => setNome(e.target.value)}
           required
         />
+      </div>
+
+      {/* Título da aba */}
+      <div className="space-y-2">
+        <Label htmlFor="tituloAba">Título da aba do navegador</Label>
+        <Input
+          id="tituloAba"
+          name="tituloAba"
+          placeholder={loja.nome}
+          value={tituloAba}
+          onChange={(e) => {
+            setTituloAba(e.target.value)
+            notifyPreview({ tituloAba: e.target.value })
+          }}
+        />
+        <p className="text-xs text-muted-foreground">
+          Texto exibido na aba do browser ao abrir o cardápio. Deixe vazio para usar o nome da loja
+          {nome.trim() ? ` (“${nome.trim()}”)` : ""}.
+        </p>
       </div>
 
       {/* Subtítulo */}

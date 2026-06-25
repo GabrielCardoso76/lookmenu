@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useActionState } from "react"
 
 import { loginAction, type LoginState } from "@/app/login/actions"
@@ -34,6 +35,12 @@ export default function LoginPage() {
             <Button type="submit" className="w-full" disabled={pending}>
               {pending ? "Entrando..." : "Entrar"}
             </Button>
+            <p className="text-center text-sm text-muted-foreground">
+              Ainda não tem loja?{" "}
+              <Link href="/comecar" className="text-primary hover:underline">
+                Criar minha loja grátis
+              </Link>
+            </p>
           </form>
         </CardContent>
       </Card>

@@ -69,6 +69,9 @@ async function main() {
         disponivel: true,
         emDestaque: true,
         destinoPreparo: "COZINHA",
+        controlaEstoque: true,
+        quantidadeEstoque: 50,
+        estoqueMinimo: 5,
       },
       {
         lojaId: loja.id,
@@ -79,6 +82,9 @@ async function main() {
         disponivel: true,
         emDestaque: false,
         destinoPreparo: "COZINHA",
+        controlaEstoque: true,
+        quantidadeEstoque: 30,
+        estoqueMinimo: 3,
       },
       {
         lojaId: loja.id,
@@ -88,6 +94,9 @@ async function main() {
         preco: 12.9,
         disponivel: true,
         destinoPreparo: "COZINHA",
+        controlaEstoque: true,
+        quantidadeEstoque: 4,
+        estoqueMinimo: 5,
       },
       {
         lojaId: loja.id,

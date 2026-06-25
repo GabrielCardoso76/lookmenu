@@ -3,10 +3,13 @@ import { redirect } from "next/navigation"
 import { DashboardShell } from "@/components/dashboard-shell"
 import { getSession } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { canUseIfood } from "@/lib/planos"
+import { ifoodAppConfigurado } from "@/lib/ifood-entrega"
 import { PAINEL_NAV } from "@/app/painel/nav"
 import { ConfiguracoesForm } from "./configuracoes-form"
 import { EntregaForm } from "./entrega-form"
 import { HorariosForm } from "./horarios-form"
+import { IfoodForm } from "./ifood-form"
 
 export default async function ConfiguracoesPage() {
   const session = await getSession()
@@ -23,10 +26,15 @@ export default async function ConfiguracoesPage() {
       pedidoMinimo: true,
       taxaEntregaFixa: true,
       freteGratisAcima: true,
+      ifoodEntregaFacilAtivo: true,
+      ifoodMerchantId: true,
+      ifoodAccessToken: true,
     },
   })
 
   if (!loja) redirect("/login")
+
+  const ifoodLiberado = await canUseIfood(session.lojaId)
 
   const horarios = await prisma.horarioFuncionamento.findMany({
     where: { lojaId: session.lojaId },
@@ -71,6 +79,23 @@ export default async function ConfiguracoesPage() {
           </p>
           <HorariosForm horarios={horarios} />
         </section>
+
+        {ifoodLiberado && (
+          <section>
+            <h3 className="mb-1 text-lg font-semibold">iFood Entrega Fácil</h3>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Use a logística do iFood para entregar seus pedidos delivery.
+            </p>
+            <IfoodForm
+              config={{
+                ifoodEntregaFacilAtivo: loja.ifoodEntregaFacilAtivo,
+                ifoodMerchantId: loja.ifoodMerchantId,
+                conectado: Boolean(loja.ifoodAccessToken),
+                appConfigurado: ifoodAppConfigurado(),
+              }}
+            />
+          </section>
+        )}
       </div>
     </DashboardShell>
   )

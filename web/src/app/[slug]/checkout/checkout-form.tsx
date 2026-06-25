@@ -2,15 +2,21 @@
 
 import Link from "next/link"
 import { ArrowLeft, ShoppingBag, Tag, X } from "lucide-react"
-import { useActionState, useState, useTransition } from "react"
+import { useActionState, useRef, useState, useTransition } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
+import { contrastingTextColor } from "@/lib/utils"
 import { useCart } from "../carrinho/cart-context"
 import { calcularTotaisPedido } from "@/lib/loja-config"
-import { criarPedidoAction, validarCupomAction, type ValidarCupomResult } from "./actions"
+import {
+  criarPedidoAction,
+  registrarCarrinhoAbandonadoAction,
+  validarCupomAction,
+  type ValidarCupomResult,
+} from "./actions"
 
 function formatPreco(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
@@ -38,6 +44,7 @@ function primeiroMetodo(loja: LojaData): "PIX_ONLINE" | "DINHEIRO_ENTREGA" | "CA
 }
 
 export function CheckoutForm({ loja }: { loja: LojaData }) {
+  const textoSobrePrimaria = contrastingTextColor(loja.corPrimaria)
   const { items, total: subtotalCart, clear } = useCart()
   const [tipoEntrega, setTipoEntrega] = useState<"DELIVERY" | "RETIRADA_BALCAO">("DELIVERY")
   const [metodoPagamento, setMetodoPagamento] = useState<"PIX_ONLINE" | "DINHEIRO_ENTREGA" | "CARTAO_ENTREGA">(
@@ -78,6 +85,28 @@ export function CheckoutForm({ loja }: { loja: LojaData }) {
     loja.pedidoMinimo != null &&
     subtotalCart < loja.pedidoMinimo
 
+  // Recuperador de vendas: registra carrinho abandonado conforme o cliente preenche os dados
+  const abandonoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function capturarAbandono(form: HTMLFormElement | null) {
+    if (!form || items.length === 0) return
+    const telefone = (form.elements.namedItem("telefone") as HTMLInputElement | null)?.value ?? ""
+    const nome = (form.elements.namedItem("nome") as HTMLInputElement | null)?.value ?? ""
+    if (telefone.replace(/\D/g, "").length < 10) return
+    void registrarCarrinhoAbandonadoAction(
+      loja.slug,
+      telefone,
+      nome,
+      items.map((i) => ({ id: i.id, nome: i.nome, preco: i.preco, quantidade: i.quantidade })),
+    )
+  }
+
+  function handleTelefoneChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const form = e.currentTarget.form
+    if (abandonoTimer.current) clearTimeout(abandonoTimer.current)
+    abandonoTimer.current = setTimeout(() => capturarAbandono(form), 1200)
+  }
+
   const boundAction = criarPedidoAction.bind(null, loja.slug, items.map((i) => ({
     produtoId: i.id,
     quantidade: i.quantidade,
@@ -89,13 +118,13 @@ export function CheckoutForm({ loja }: { loja: LojaData }) {
 
   if (items.length === 0) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-neutral-50 p-4">
+      <div className="cardapio-light flex min-h-screen flex-col items-center justify-center gap-4 bg-neutral-50 p-4">
         <ShoppingBag className="h-12 w-12 text-muted-foreground" />
         <p className="text-lg font-medium text-muted-foreground">Seu carrinho está vazio</p>
         <Link
           href={`/${loja.slug}`}
-          className="rounded-xl px-6 py-3 text-white font-semibold"
-          style={{ backgroundColor: loja.corPrimaria }}
+          className="rounded-xl px-6 py-3 font-semibold"
+          style={{ backgroundColor: loja.corPrimaria, color: textoSobrePrimaria }}
         >
           Ver cardápio
         </Link>
@@ -104,7 +133,7 @@ export function CheckoutForm({ loja }: { loja: LojaData }) {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="cardapio-light min-h-screen bg-neutral-50 text-foreground">
       <header
         className="sticky top-0 z-10 border-b bg-white/95 backdrop-blur"
         style={{ borderBottomColor: `${loja.corPrimaria}33` }}
@@ -113,7 +142,7 @@ export function CheckoutForm({ loja }: { loja: LojaData }) {
           <Link href={`/${loja.slug}`} className="rounded-full p-2 hover:bg-muted">
             <ArrowLeft className="h-5 w-5" />
           </Link>
-          <h1 className="text-xl font-bold" style={{ color: loja.corPrimaria }}>
+          <h1 className="text-xl font-bold text-foreground">
             Finalizar pedido
           </h1>
         </div>
@@ -187,7 +216,14 @@ export function CheckoutForm({ loja }: { loja: LojaData }) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="telefone">Telefone / WhatsApp</Label>
-              <Input id="telefone" name="telefone" placeholder="(11) 99999-9999" required />
+              <Input
+                id="telefone"
+                name="telefone"
+                placeholder="(11) 99999-9999"
+                required
+                onChange={handleTelefoneChange}
+                onBlur={(e) => capturarAbandono(e.currentTarget.form)}
+              />
             </div>
           </div>
 
@@ -362,8 +398,8 @@ export function CheckoutForm({ loja }: { loja: LojaData }) {
           <Button
             type="submit"
             disabled={pending || abaixoMinimo}
-            className="w-full rounded-2xl py-6 text-base font-bold text-white"
-            style={{ backgroundColor: loja.corPrimaria }}
+            className="w-full rounded-2xl border-0 py-6 text-base font-bold shadow-sm hover:opacity-90"
+            style={{ backgroundColor: loja.corPrimaria, color: textoSobrePrimaria }}
           >
             {pending ? "Enviando pedido..." : `Confirmar pedido • ${formatPreco(totais.total)}`}
           </Button>

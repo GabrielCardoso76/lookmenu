@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useState } from "react"
 import { Menu, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -41,8 +42,8 @@ export function Header() {
         </nav>
 
         <div className="hidden md:block">
-          <Button className="bg-primary font-semibold text-primary-foreground hover:bg-primary/90">
-            Comecar agora
+          <Button asChild className="bg-primary font-semibold text-primary-foreground hover:bg-primary/90">
+            <Link href="/comecar">Comecar agora</Link>
           </Button>
         </div>
 
@@ -69,8 +70,13 @@ export function Header() {
                 {link.label}
               </a>
             ))}
-            <Button className="mt-2 w-full bg-primary font-semibold text-primary-foreground hover:bg-primary/90">
-              Comecar agora
+            <Button
+              asChild
+              className="mt-2 w-full bg-primary font-semibold text-primary-foreground hover:bg-primary/90"
+            >
+              <Link href="/comecar" onClick={() => setMobileOpen(false)}>
+                Comecar agora
+              </Link>
             </Button>
           </nav>
         </div>

@@ -5,12 +5,18 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { DashboardShell } from "@/components/dashboard-shell"
+import { OnboardingChecklist } from "@/components/onboarding-checklist"
 import { getSession } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { getTrialStatus } from "@/lib/planos"
 import { PAINEL_NAV } from "@/app/painel/nav"
 
 function formatPreco(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+}
+
+function formatData(value: Date) {
+  return value.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
 }
 
 const ESTADO_LABEL: Record<string, string> = {
@@ -28,9 +34,16 @@ const PAGAMENTO_LABEL: Record<string, string> = {
   CARTAO_ENTREGA: "Cartão",
 }
 
-export default async function PainelDashboardPage() {
+export default async function PainelDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ bemvindo?: string }>
+}) {
   const session = await getSession()
   if (!session || session.papel !== "LOJISTA" || !session.lojaId) redirect("/login")
+
+  const { bemvindo } = await searchParams
+  const trial = await getTrialStatus(session.lojaId)
 
   const hoje = new Date()
   hoje.setHours(0, 0, 0, 0)
@@ -94,6 +107,35 @@ export default async function PainelDashboardPage() {
         </p>
       </div>
 
+      {bemvindo && (
+        <div className="mb-4 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
+          <p className="font-semibold text-primary">Bem-vindo ao LookMenu! 🎉</p>
+          <p className="text-sm text-muted-foreground">
+            Sua loja foi criada. Comece cadastrando categorias e produtos para publicar seu cardápio.
+          </p>
+        </div>
+      )}
+
+      {trial.ativo && trial.expiraEm && (
+        <div className="mb-4 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+          <span className="font-semibold text-primary">Período de teste ativo.</span>{" "}
+          <span className="text-muted-foreground">
+            Trial até {formatData(trial.expiraEm)}
+            {trial.diasRestantes != null && ` — ${trial.diasRestantes} dia(s) restante(s).`}
+          </span>
+        </div>
+      )}
+
+      {trial.expirado && trial.expiraEm && (
+        <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <span className="font-semibold">Seu período de teste expirou em {formatData(trial.expiraEm)}.</span>{" "}
+          Fale com nosso time para continuar aproveitando todos os recursos do LookMenu.
+        </div>
+      )}
+
+      {/* Onboarding checklist */}
+      <OnboardingChecklist lojaId={session.lojaId} />
+
       {/* Resumo + atalhos */}
       <div className="mb-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-7">
         <Card>
@@ -152,6 +194,18 @@ export default async function PainelDashboardPage() {
           <CardContent>
             <Button asChild variant="outline" size="sm">
               <Link href="/painel/categorias">Gerenciar</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader className="pb-1">
+            <CardDescription>PDV</CardDescription>
+            <CardTitle className="text-xl">Balcão</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Button asChild size="sm">
+              <Link href="/painel/pdv">Abrir PDV</Link>
             </Button>
           </CardContent>
         </Card>

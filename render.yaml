@@ -1,0 +1,54 @@
+# Render Blueprint — deploy gratuito LookMenu
+# Docs: docs/DEPLOY.md
+#
+# Como usar:
+#   1. Faça push deste repo no GitHub
+#   2. Acesse https://dashboard.render.com/blueprints
+#   3. "New Blueprint Instance" → conecte o repositório
+#   4. Preencha as variáveis marcadas como sync: false (veja DEPLOY.md)
+#   5. Após o deploy, rode o seed pelo Shell do Render (passo 8 do guia)
+
+services:
+  - type: web
+    name: lookmenu
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: bun run render:build
+    startCommand: bun run render:start
+    healthCheckPath: /
+    envVars:
+      - key: BUN_VERSION
+        value: "1.2.5"
+      - key: NODE_ENV
+        value: production
+      - key: APP_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      - key: STORAGE_PROVIDER
+        value: supabase
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: lookmenu
+      - key: WHATSAPP_ENABLED
+        value: "false"
+      - key: SUPPORT_WHATSAPP
+        value: "5511999999999"
+      - key: SUPER_ADMIN_EMAIL
+        value: admin@lookmenu.local
+      - key: SUPER_ADMIN_PASSWORD
+        sync: false
+      - key: LOJISTA_DEMO_EMAIL
+        value: lojista@burger-king-demo.local
+      - key: LOJISTA_DEMO_PASSWORD
+        sync: false

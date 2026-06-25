@@ -1,6 +1,7 @@
 "use client"
 
 import React from "react"
+import Link from "next/link"
 
 import { useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
@@ -91,11 +92,14 @@ export function Hero() {
 
               <div className="mt-8 flex flex-col gap-4 sm:flex-row">
                 <Button
+                  asChild
                   size="lg"
                   className="bg-primary text-lg font-semibold text-primary-foreground hover:bg-primary/90 rounded-2xl"
                 >
-                  Quero meu cardapio automatizado
-                  <ArrowRight className="ml-2 h-5 w-5" />
+                  <Link href="/comecar">
+                    Quero meu cardapio automatizado
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
                 </Button>
               </div>
             </div>

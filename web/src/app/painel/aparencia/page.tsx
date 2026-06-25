@@ -27,6 +27,7 @@ export default async function AparenciaPage() {
           logoUrl: loja.logoUrl,
           fontePreset: loja.fontePreset,
           subtituloCardapio: loja.subtituloCardapio,
+          tituloAba: loja.tituloAba,
         }}
       />
     </DashboardShell>

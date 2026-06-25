@@ -5,8 +5,8 @@ import { Minus, Plus, ShoppingCart, Trash2, X } from "lucide-react"
 import { useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { contrastingTextColor } from "@/lib/utils"
 import { useCart } from "./cart-context"
 
 function formatPreco(value: number) {
@@ -16,6 +16,7 @@ function formatPreco(value: number) {
 export function CartBar({ slug, corPrimaria }: { slug: string; corPrimaria: string }) {
   const { items, count, total, increment, decrement, remove } = useCart()
   const [open, setOpen] = useState(false)
+  const textoSobrePrimaria = contrastingTextColor(corPrimaria)
 
   if (count === 0) return null
 
@@ -26,8 +27,8 @@ export function CartBar({ slug, corPrimaria }: { slug: string; corPrimaria: stri
         <div className="pointer-events-auto mx-auto max-w-3xl">
           <button
             onClick={() => setOpen(true)}
-            className="flex w-full items-center justify-between rounded-2xl px-5 py-4 text-white shadow-2xl transition-transform active:scale-[0.98]"
-            style={{ backgroundColor: corPrimaria }}
+            className="flex w-full items-center justify-between rounded-2xl px-5 py-4 shadow-2xl transition-transform active:scale-[0.98]"
+            style={{ backgroundColor: corPrimaria, color: textoSobrePrimaria }}
           >
             <div className="flex items-center gap-3">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-sm font-bold">
@@ -105,8 +106,8 @@ export function CartBar({ slug, corPrimaria }: { slug: string; corPrimaria: stri
               <Link
                 href={`/${slug}/checkout`}
                 onClick={() => setOpen(false)}
-                className="flex w-full items-center justify-center rounded-xl py-4 text-white font-bold text-base transition-opacity hover:opacity-90"
-                style={{ backgroundColor: corPrimaria }}
+                className="flex w-full items-center justify-center rounded-xl py-4 font-bold text-base transition-opacity hover:opacity-90"
+                style={{ backgroundColor: corPrimaria, color: textoSobrePrimaria }}
               >
                 Finalizar pedido
               </Link>

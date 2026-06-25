@@ -10,6 +10,11 @@ export default async function PedidosPage() {
   const session = await getSession()
   if (!session || session.papel !== "LOJISTA" || !session.lojaId) redirect("/login")
 
+  const loja = await prisma.loja.findUnique({
+    where: { id: session.lojaId },
+    select: { ifoodEntregaFacilAtivo: true },
+  })
+
   const pedidos = await prisma.pedido.findMany({
     where: {
       lojaId: session.lojaId,
@@ -43,6 +48,8 @@ export default async function PedidosPage() {
     mesaNumero: p.mesa?.numero ?? null,
     mesaNome: p.mesa?.nome ?? null,
     funcionarioNome: p.funcionario?.nome ?? null,
+    ifoodEntregaId: p.ifoodEntregaId,
+    ifoodEntregaStatus: p.ifoodEntregaStatus,
     itens: p.itens.map((i) => ({
       id: i.id,
       quantidade: i.quantidade,
@@ -68,7 +75,7 @@ export default async function PedidosPage() {
         </p>
       </div>
 
-      <KDSBoard pedidos={pedidosData} />
+      <KDSBoard pedidos={pedidosData} ifoodAtivo={loja?.ifoodEntregaFacilAtivo ?? false} />
     </DashboardShell>
   )
 }

@@ -49,7 +49,7 @@ export default async function PedidoConfirmacaoPage({ params }: PageProps) {
   const numeroCurto = pedido.id.slice(-6).toUpperCase()
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="cardapio-light min-h-screen bg-neutral-50 text-foreground">
       <main className="mx-auto max-w-lg space-y-6 px-4 py-10">
         {/* Success header */}
         <div className="flex flex-col items-center gap-3 text-center">

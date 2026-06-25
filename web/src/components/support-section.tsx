@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { ScrollReveal } from "@/components/scroll-reveal"
 import { Headphones, Clock, MessageCircle, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -42,8 +43,11 @@ export function SupportSection() {
                 Nosso time te acompanha desde a configuracao ate o crescimento do seu negocio. Suporte
                 humanizado, rapido e pelo WhatsApp.
               </p>
-              <Button className="mt-8 rounded-full bg-primary px-8 py-6 text-base font-semibold text-primary-foreground hover:bg-primary/90">
-                Falar com o time
+              <Button
+                asChild
+                className="mt-8 rounded-full bg-primary px-8 py-6 text-base font-semibold text-primary-foreground hover:bg-primary/90"
+              >
+                <Link href="/comecar">Falar com o time</Link>
               </Button>
             </div>
           </ScrollReveal>

@@ -2,11 +2,16 @@
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { useEffect, useTransition, useState } from "react"
-import { ArrowRight, Clock, X, MapPin, User } from "lucide-react"
+import { ArrowRight, Clock, X, MapPin, User, Bike, RefreshCw } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { avancarPedidoAction, cancelarPedidoAction } from "@/app/painel/actions"
+import {
+  avancarPedidoAction,
+  cancelarPedidoAction,
+  solicitarEntregaIfoodAction,
+  syncEntregaIfoodAction,
+} from "@/app/painel/actions"
 
 export type PedidoKDS = {
   id: string
@@ -20,6 +25,8 @@ export type PedidoKDS = {
   mesaNumero: string | null
   mesaNome: string | null
   funcionarioNome: string | null
+  ifoodEntregaId: string | null
+  ifoodEntregaStatus: string | null
   itens: Array<{
     id: string
     quantidade: number
@@ -74,13 +81,16 @@ function hasItemBar(pedido: PedidoKDS) {
   return pedido.itens.some((i) => i.produto.destinoPreparo === "BAR")
 }
 
-function PedidoCard({ pedido }: { pedido: PedidoKDS }) {
+function PedidoCard({ pedido, ifoodAtivo }: { pedido: PedidoKDS; ifoodAtivo: boolean }) {
   const [avancarPending, startAvancar] = useTransition()
   const [cancelarPending, startCancelar] = useTransition()
+  const [ifoodPending, startIfood] = useTransition()
   const numeroCurto = pedido.id.slice(-6).toUpperCase()
   const isSalao = pedido.tipoEntrega === "SALAO_MESA"
   // Para salão: KDS para em PRONTO; CONCLUIDO vem de fecharContaMesaAction
   const isUltimo = pedido.estadoPedido === "CONCLUIDO" || (isSalao && pedido.estadoPedido === "PRONTO")
+  const isDelivery = pedido.tipoEntrega === "DELIVERY"
+  const mostrarSolicitarIfood = ifoodAtivo && isDelivery && !pedido.ifoodEntregaId && pedido.estadoPedido !== "CONCLUIDO"
 
   function avancar() {
     startAvancar(async () => {
@@ -91,6 +101,20 @@ function PedidoCard({ pedido }: { pedido: PedidoKDS }) {
   function cancelar() {
     startCancelar(async () => {
       await cancelarPedidoAction(pedido.id)
+    })
+  }
+
+  function solicitarIfood() {
+    startIfood(async () => {
+      const res = await solicitarEntregaIfoodAction(pedido.id)
+      if (!res.ok && res.error) window.alert(`iFood: ${res.error}`)
+    })
+  }
+
+  function sincronizarIfood() {
+    startIfood(async () => {
+      const res = await syncEntregaIfoodAction(pedido.id)
+      if (!res.ok && res.error) window.alert(`iFood: ${res.error}`)
     })
   }
 
@@ -174,6 +198,41 @@ function PedidoCard({ pedido }: { pedido: PedidoKDS }) {
         </p>
       )}
 
+      {/* iFood Entrega Fácil */}
+      {ifoodAtivo && isDelivery && (
+        <div className="space-y-2 rounded-lg border border-red-200 bg-red-50/60 p-2">
+          {pedido.ifoodEntregaStatus && (
+            <div className="flex items-center justify-between">
+              <Badge variant="outline" className="text-xs border-red-300 text-red-700 bg-red-50">
+                <Bike className="mr-1 h-3 w-3" />
+                iFood: {pedido.ifoodEntregaStatus}
+              </Badge>
+              <button
+                type="button"
+                onClick={sincronizarIfood}
+                disabled={ifoodPending}
+                className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                aria-label="Atualizar status iFood"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${ifoodPending ? "animate-spin" : ""}`} />
+              </button>
+            </div>
+          )}
+          {mostrarSolicitarIfood && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={solicitarIfood}
+              disabled={ifoodPending}
+              className="w-full border-red-300 text-red-700 hover:bg-red-100 text-xs"
+            >
+              <Bike className="mr-1 h-3 w-3" />
+              {ifoodPending ? "Solicitando..." : "Solicitar entregador iFood"}
+            </Button>
+          )}
+        </div>
+      )}
+
       {isSalao && pedido.estadoPedido === "PRONTO" ? (
         <p className="text-xs text-muted-foreground text-center pt-1 border-t">
           Aguardando fechamento pelo garçom
@@ -211,7 +270,7 @@ const FILTROS: { id: Filtro; label: string }[] = [
   { id: "BAR", label: "Bar / Bebidas" },
 ]
 
-export function KDSBoard({ pedidos }: { pedidos: PedidoKDS[] }) {
+export function KDSBoard({ pedidos, ifoodAtivo = false }: { pedidos: PedidoKDS[]; ifoodAtivo?: boolean }) {
   const router = useRouter()
   const [filtro, setFiltro] = useState<Filtro>("TODOS")
 
@@ -286,7 +345,7 @@ export function KDSBoard({ pedidos }: { pedidos: PedidoKDS[] }) {
                 <p className="text-center text-xs text-muted-foreground py-4">Sem pedidos</p>
               ) : (
                 col.pedidos.map((pedido) => (
-                  <PedidoCard key={pedido.id} pedido={pedido} />
+                  <PedidoCard key={pedido.id} pedido={pedido} ifoodAtivo={ifoodAtivo} />
                 ))
               )}
             </div>

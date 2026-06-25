@@ -56,14 +56,24 @@ After running the seed:
 
 | Role | Email | Password |
 |---|---|---|
-| Super Admin | `admin@lookmenu.com.br` | `admin123` |
-| Lojista | `lojista@demonstracao.com.br` | `loja123` |
+| Super Admin | `admin@lookmenu.local` | `admin123` (or `SUPER_ADMIN_PASSWORD` from `.env`) |
+| Lojista | `lojista@burger-king-demo.local` | `lojista123` (or `LOJISTA_DEMO_PASSWORD` from `.env`) |
 
-Demo store slug: `demonstracao`
+Demo store slug: `burger-king-demo`
 
 Waiter PINs (for `/{slug}/atendimento` login):
 - João Garçom — PIN `1234`
 - Maria Atendente — PIN `5678`
+
+## Deploy (free — Supabase + Render)
+
+See **[docs/DEPLOY.md](./docs/DEPLOY.md)** for the full step-by-step guide (database, API keys, Render, seed, cron).
+
+Quick generate secrets (Windows):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/generate-secrets.ps1
+```
 
 ## Useful Scripts
 

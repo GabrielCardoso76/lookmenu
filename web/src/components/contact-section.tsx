@@ -8,6 +8,37 @@ import { ScrollReveal } from "./scroll-reveal"
 
 export function ContactSection() {
   const [submitted, setSubmitted] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setLoading(true)
+    setError("")
+    const form = e.currentTarget
+    const data = {
+      nome: (form.elements.namedItem("name") as HTMLInputElement).value,
+      loja: (form.elements.namedItem("store") as HTMLInputElement).value,
+      whatsapp: (form.elements.namedItem("whatsapp") as HTMLInputElement).value,
+    }
+    try {
+      const res = await fetch("/api/contato", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      if (res.ok) {
+        setSubmitted(true)
+      } else {
+        const json = await res.json() as { error?: string }
+        setError(json.error ?? "Erro ao enviar. Tente novamente.")
+      }
+    } catch {
+      setError("Erro de conexão. Tente novamente.")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <section className="py-20 lg:py-28">
@@ -50,10 +81,7 @@ export function ContactSection() {
               ) : (
                 <form
                   className="mt-6 flex flex-col gap-4"
-                  onSubmit={(e) => {
-                    e.preventDefault()
-                    setSubmitted(true)
-                  }}
+                  onSubmit={handleSubmit}
                 >
                   <div>
                     <label htmlFor="name" className="mb-1.5 block text-sm font-medium text-foreground">
@@ -61,6 +89,7 @@ export function ContactSection() {
                     </label>
                     <Input
                       id="name"
+                      name="name"
                       placeholder="Joao Silva"
                       required
                       className="rounded-xl border-border bg-background text-foreground placeholder:text-muted-foreground"
@@ -72,8 +101,8 @@ export function ContactSection() {
                     </label>
                     <Input
                       id="store"
+                      name="store"
                       placeholder="Burger do Joao"
-                      required
                       className="rounded-xl border-border bg-background text-foreground placeholder:text-muted-foreground"
                     />
                   </div>
@@ -83,18 +112,21 @@ export function ContactSection() {
                     </label>
                     <Input
                       id="whatsapp"
+                      name="whatsapp"
                       placeholder="(11) 99999-9999"
                       required
                       className="rounded-xl border-border bg-background text-foreground placeholder:text-muted-foreground"
                     />
                   </div>
+                  {error && <p className="text-sm text-destructive">{error}</p>}
                   <Button
                     type="submit"
                     size="lg"
+                    disabled={loading}
                     className="mt-2 rounded-2xl bg-primary font-semibold text-primary-foreground hover:bg-primary/90"
                   >
-                    Enviar
-                    <Send className="ml-2 h-4 w-4" />
+                    {loading ? "Enviando…" : "Enviar"}
+                    {!loading && <Send className="ml-2 h-4 w-4" />}
                   </Button>
                 </form>
               )}

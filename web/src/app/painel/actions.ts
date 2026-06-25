@@ -6,6 +6,8 @@ import bcrypt from "bcryptjs"
 import { requireLojista } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { notificarClientePedido } from "@/lib/notificacoes"
+import { ajustarEstoque } from "@/lib/estoque"
+import { solicitarEntrega, syncStatus, testarConexao, type IfoodResult } from "@/lib/ifood-entrega"
 
 export type ActionState = {
   error?: string
@@ -39,6 +41,8 @@ export async function updateAparenciaAction(_prev: ActionState, formData: FormDa
   const logoUrl = getString(formData, "logoUrl") || null
   const fontePreset = getString(formData, "fontePreset") || null
   const subtituloCardapio = getString(formData, "subtituloCardapio") || null
+  const tituloAbaRaw = getString(formData, "tituloAba")
+  const tituloAba = tituloAbaRaw.trim() || null
 
   if (!nome || !corPrimaria) {
     return { error: "Preencha nome e cor primária." }
@@ -55,6 +59,7 @@ export async function updateAparenciaAction(_prev: ActionState, formData: FormDa
       logoUrl,
       fontePreset,
       subtituloCardapio,
+      tituloAba,
     },
   })
 
@@ -237,6 +242,9 @@ export async function createProdutoAction(_prev: ActionState, formData: FormData
   const emDestaque = formData.get("emDestaque") === "on"
   const destinoPreparo = (getString(formData, "destinoPreparo") || "NENHUM") as "COZINHA" | "BAR" | "NENHUM"
   const imagemUrl = getString(formData, "imagemUrl") || null
+  const controlaEstoque = formData.get("controlaEstoque") === "on"
+  const quantidadeEstoque = Number(getString(formData, "quantidadeEstoque") || "0")
+  const estoqueMinimo = getString(formData, "estoqueMinimo") ? Number(getString(formData, "estoqueMinimo")) : null
 
   if (!nome || !descricao || !categoriaId || !Number.isFinite(preco) || preco <= 0) {
     return { error: "Preencha todos os campos corretamente." }
@@ -250,7 +258,12 @@ export async function createProdutoAction(_prev: ActionState, formData: FormData
   const loja = await prisma.loja.findUnique({ where: { id: lojaId }, select: { slug: true } })
 
   await prisma.produto.create({
-    data: { lojaId, categoriaId, nome, descricao, preco, disponivel, emDestaque, destinoPreparo, imagemUrl },
+    data: {
+      lojaId, categoriaId, nome, descricao, preco, disponivel, emDestaque, destinoPreparo, imagemUrl,
+      controlaEstoque,
+      quantidadeEstoque: Number.isFinite(quantidadeEstoque) && quantidadeEstoque >= 0 ? quantidadeEstoque : 0,
+      estoqueMinimo: estoqueMinimo != null && Number.isFinite(estoqueMinimo) && estoqueMinimo >= 0 ? estoqueMinimo : null,
+    },
   })
 
   revalidatePath("/painel/produtos")
@@ -278,6 +291,8 @@ export async function updateProdutoAction(
   const emDestaque = formData.get("emDestaque") === "on"
   const destinoPreparo = (getString(formData, "destinoPreparo") || "NENHUM") as "COZINHA" | "BAR" | "NENHUM"
   const imagemUrl = getString(formData, "imagemUrl") || null
+  const controlaEstoque = formData.get("controlaEstoque") === "on"
+  const estoqueMinimo = getString(formData, "estoqueMinimo") ? Number(getString(formData, "estoqueMinimo")) : null
 
   const produto = await prisma.produto.findFirst({
     where: { id: produtoId, lojaId },
@@ -293,7 +308,11 @@ export async function updateProdutoAction(
 
   await prisma.produto.update({
     where: { id: produtoId },
-    data: { nome, descricao, preco, categoriaId, disponivel, emDestaque, destinoPreparo, imagemUrl },
+    data: {
+      nome, descricao, preco, categoriaId, disponivel, emDestaque, destinoPreparo, imagemUrl,
+      controlaEstoque,
+      estoqueMinimo: estoqueMinimo != null && Number.isFinite(estoqueMinimo) && estoqueMinimo >= 0 ? estoqueMinimo : null,
+    },
   })
 
   revalidatePath("/painel/produtos")
@@ -381,15 +400,36 @@ export async function cancelarPedidoAction(pedidoId: string): Promise<void> {
 
   const pedido = await prisma.pedido.findFirst({
     where: { id: pedidoId, lojaId },
+    include: {
+      itens: {
+        select: { produtoId: true, quantidade: true, produto: { select: { controlaEstoque: true } } },
+      },
+    },
   })
   if (!pedido) return
 
-  await prisma.pedido.update({
-    where: { id: pedidoId },
-    data: { estadoPedido: "CANCELADO" },
+  await prisma.$transaction(async (tx) => {
+    await tx.pedido.update({
+      where: { id: pedidoId },
+      data: { estadoPedido: "CANCELADO" },
+    })
+
+    for (const item of pedido.itens) {
+      if (item.produto.controlaEstoque) {
+        await ajustarEstoque(tx, {
+          produtoId: item.produtoId,
+          lojaId,
+          delta: item.quantidade,
+          tipo: "CANCELAMENTO",
+          pedidoId,
+          observacao: "Cancelamento de pedido",
+        })
+      }
+    }
   })
 
   revalidatePath("/painel/pedidos")
+  revalidatePath("/painel/estoque")
 }
 
 // ─── Mesas ────────────────────────────────────────────────────────────────────
@@ -830,4 +870,321 @@ export async function deleteCupomAction(cupomId: string, _prev: ActionState = {}
   await prisma.cupom.delete({ where: { id: cupomId } })
   revalidatePath("/painel/cupons")
   return { success: "Cupom excluído." }
+}
+
+// ─── Estoque ──────────────────────────────────────────────────────────────────
+
+export async function toggleControlaEstoqueAction(
+  produtoId: string,
+  controlaEstoque: boolean,
+): Promise<ActionState> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { error: "Acesso negado." }
+  }
+
+  const produto = await prisma.produto.findFirst({ where: { id: produtoId, lojaId } })
+  if (!produto) return { error: "Produto não encontrado." }
+
+  await prisma.produto.update({
+    where: { id: produtoId },
+    data: { controlaEstoque },
+  })
+
+  revalidatePath("/painel/estoque")
+  revalidatePath("/painel/produtos")
+  return { success: controlaEstoque ? "Controle de estoque ativado." : "Controle de estoque desativado." }
+}
+
+export async function movimentarEstoqueAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { error: "Acesso negado." }
+  }
+
+  const produtoId = getString(formData, "produtoId")
+  const tipoRaw = getString(formData, "tipo") as "ENTRADA" | "SAIDA" | "AJUSTE"
+  const quantidadeStr = getString(formData, "quantidade")
+  const observacao = getString(formData, "observacao") || undefined
+
+  if (!produtoId) return { error: "Produto inválido." }
+  if (!["ENTRADA", "SAIDA", "AJUSTE"].includes(tipoRaw)) return { error: "Tipo inválido." }
+
+  const quantidade = parseInt(quantidadeStr)
+  if (!Number.isFinite(quantidade) || quantidade <= 0) {
+    return { error: "Quantidade deve ser um número positivo." }
+  }
+
+  const produto = await prisma.produto.findFirst({
+    where: { id: produtoId, lojaId },
+    select: { nome: true, controlaEstoque: true },
+  })
+  if (!produto) return { error: "Produto não encontrado." }
+  if (!produto.controlaEstoque) return { error: "Este produto não tem controle de estoque ativo." }
+
+  await prisma.$transaction(async (tx) => {
+    await ajustarEstoque(tx, {
+      produtoId,
+      lojaId,
+      delta: quantidade,
+      tipo: tipoRaw,
+      observacao,
+    })
+  })
+
+  revalidatePath("/painel/estoque")
+  revalidatePath("/painel/produtos")
+
+  const labels = { ENTRADA: "Entrada", SAIDA: "Saída", AJUSTE: "Ajuste" }
+  return { success: `${labels[tipoRaw]} de ${quantidade} un. registrada em "${produto.nome}".` }
+}
+
+// ─── PDV ──────────────────────────────────────────────────────────────────────
+
+export type PdvActionState = ActionState & { pedidoId?: string }
+
+export async function criarVendaPdvAction(
+  _prev: PdvActionState,
+  formData: FormData,
+): Promise<PdvActionState> {
+  let session: { lojaId: string }
+  try {
+    session = await requireLojista()
+  } catch {
+    return { error: "Acesso negado." }
+  }
+
+  const lojaId = session.lojaId
+  const itensJson = getString(formData, "itens")
+  const metodoPagamento = getString(formData, "metodoPagamento") as "DINHEIRO_ENTREGA" | "CARTAO_ENTREGA"
+  const nomeCliente = getString(formData, "nomeCliente") || "Balcão"
+
+  if (!itensJson) return { error: "Carrinho vazio." }
+  if (!["DINHEIRO_ENTREGA", "CARTAO_ENTREGA"].includes(metodoPagamento)) {
+    return { error: "Método de pagamento inválido." }
+  }
+
+  type ItemPdv = { produtoId: string; quantidade: number; precoUnitario: number }
+  let itens: ItemPdv[]
+  try {
+    itens = JSON.parse(itensJson) as ItemPdv[]
+    if (!Array.isArray(itens) || itens.length === 0) throw new Error()
+  } catch {
+    return { error: "Carrinho inválido." }
+  }
+
+  const produtoIds = itens.map((i) => i.produtoId)
+  const produtos = await prisma.produto.findMany({
+    where: { id: { in: produtoIds }, lojaId, disponivel: true },
+    select: { id: true, preco: true, controlaEstoque: true },
+  })
+
+  if (produtos.length !== produtoIds.length) {
+    return { error: "Algum produto não está disponível." }
+  }
+
+  const precoMap = new Map(produtos.map((p) => [p.id, Number(p.preco)]))
+  const total = itens.reduce(
+    (s, i) => s + (precoMap.get(i.produtoId) ?? i.precoUnitario) * i.quantidade,
+    0,
+  )
+
+  const pedido = await prisma.$transaction(async (tx) => {
+    const p = await tx.pedido.create({
+      data: {
+        lojaId,
+        estadoPedido: "NOVO",
+        tipoEntrega: "RETIRADA_BALCAO",
+        subtotal: total,
+        total,
+        estadoPagamento: "PAGO",
+        metodoPagamento,
+        nomeCliente,
+        itens: {
+          create: itens.map((item) => ({
+            produtoId: item.produtoId,
+            quantidade: item.quantidade,
+            precoUnitario: precoMap.get(item.produtoId) ?? item.precoUnitario,
+          })),
+        },
+      },
+    })
+
+    for (const item of itens) {
+      await ajustarEstoque(tx, {
+        produtoId: item.produtoId,
+        lojaId,
+        delta: item.quantidade,
+        tipo: "VENDA",
+        pedidoId: p.id,
+        observacao: `PDV — ${nomeCliente}`,
+      })
+    }
+
+    return p
+  })
+
+  revalidatePath("/painel/pedidos")
+  revalidatePath("/painel/estoque")
+  revalidatePath("/painel/pdv")
+  revalidatePath("/painel")
+
+  return {
+    success: `Venda #${pedido.id.slice(-6).toUpperCase()} registrada com sucesso!`,
+    pedidoId: pedido.id,
+  }
+}
+
+// ─── Onboarding ───────────────────────────────────────────────────────────────
+
+export async function dismissOnboardingAction(_formData: FormData): Promise<void> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return
+  }
+
+  await prisma.loja.update({
+    where: { id: lojaId },
+    data: { onboardingDismissedEm: new Date() },
+  })
+
+  revalidatePath("/painel")
+}
+
+// ─── Recuperador de vendas ──────────────────────────────────────────────────
+
+export async function updateRecuperadorAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { error: "Acesso negado." }
+  }
+
+  const recuperadorAtivo = formData.get("recuperadorAtivo") === "true"
+  const minutosRaw = parseInt(getString(formData, "recuperadorMinutos"), 10)
+  const recuperadorMinutos = Number.isFinite(minutosRaw) ? Math.min(1440, Math.max(5, minutosRaw)) : 15
+
+  await prisma.loja.update({
+    where: { id: lojaId },
+    data: { recuperadorAtivo, recuperadorMinutos },
+  })
+
+  revalidatePath("/painel/recuperador")
+  return { success: "Configurações do recuperador salvas." }
+}
+
+// ─── iFood Entrega Fácil ────────────────────────────────────────────────────
+
+export async function updateIfoodAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { error: "Acesso negado." }
+  }
+
+  const ifoodEntregaFacilAtivo = formData.get("ifoodEntregaFacilAtivo") === "true"
+  const ifoodMerchantId = getString(formData, "ifoodMerchantId") || null
+
+  if (ifoodEntregaFacilAtivo && !ifoodMerchantId) {
+    return { error: "Informe o Merchant ID do iFood para ativar a integração." }
+  }
+
+  await prisma.loja.update({
+    where: { id: lojaId },
+    data: { ifoodEntregaFacilAtivo, ifoodMerchantId },
+  })
+
+  revalidatePath("/painel/configuracoes")
+  revalidatePath("/painel/pedidos")
+  return { success: "Configurações do iFood Entrega Fácil salvas." }
+}
+
+export async function testarConexaoIfoodAction(): Promise<ActionState> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { error: "Acesso negado." }
+  }
+
+  const res = await testarConexao(lojaId)
+  return res.ok ? { success: "Conexão com o iFood estabelecida." } : { error: res.error ?? "Falha na conexão." }
+}
+
+export async function solicitarEntregaIfoodAction(pedidoId: string): Promise<IfoodResult> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { ok: false, error: "Acesso negado." }
+  }
+
+  const pedido = await prisma.pedido.findFirst({ where: { id: pedidoId, lojaId }, select: { id: true } })
+  if (!pedido) return { ok: false, error: "Pedido não encontrado." }
+
+  const res = await solicitarEntrega(pedidoId)
+  revalidatePath("/painel/pedidos")
+  return res
+}
+
+export async function syncEntregaIfoodAction(pedidoId: string): Promise<IfoodResult> {
+  let lojaId: string
+  try {
+    lojaId = await getLojaIdFromSession()
+  } catch {
+    return { ok: false, error: "Acesso negado." }
+  }
+
+  const pedido = await prisma.pedido.findFirst({ where: { id: pedidoId, lojaId }, select: { id: true } })
+  if (!pedido) return { ok: false, error: "Pedido não encontrado." }
+
+  const res = await syncStatus(pedidoId)
+  revalidatePath("/painel/pedidos")
+  return res
+}
+
+// ─── Suporte ──────────────────────────────────────────────────────────────────
+
+export async function criarTicketSuporteAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  let session: Awaited<ReturnType<typeof requireLojista>>
+  try {
+    session = await requireLojista()
+  } catch {
+    return { error: "Acesso negado." }
+  }
+
+  const assunto = getString(formData, "assunto")
+  const mensagem = getString(formData, "mensagem")
+
+  if (!assunto || !mensagem) {
+    return { error: "Preencha assunto e mensagem." }
+  }
+  if (mensagem.length < 10) {
+    return { error: "Mensagem muito curta (mínimo 10 caracteres)." }
+  }
+
+  await prisma.ticketSuporte.create({
+    data: {
+      lojaId: session.lojaId,
+      usuarioId: session.id,
+      assunto,
+      mensagem,
+    },
+  })
+
+  return { success: "Mensagem enviada! Retornaremos em breve." }
 }

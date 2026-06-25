@@ -78,6 +78,7 @@ export default async function AdminDashboardPage() {
                 <TableHead>Nome</TableHead>
                 <TableHead>Slug</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Plano / Trial</TableHead>
                 <TableHead>Lojista</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -97,6 +98,30 @@ export default async function AdminDashboardPage() {
                       <Badge variant={loja.ativa ? "default" : "secondary"}>
                         {loja.ativa ? "Ativa" : "Inativa"}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        {loja.planoInteresse ? (
+                          <Badge variant="outline" className="w-fit text-xs">
+                            {loja.planoInteresse}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                        {loja.trialExpiraEm ? (
+                          <span
+                            className={`text-xs ${
+                              loja.trialExpiraEm.getTime() > Date.now()
+                                ? "text-muted-foreground"
+                                : "text-amber-600"
+                            }`}
+                          >
+                            Trial{" "}
+                            {loja.trialExpiraEm.getTime() > Date.now() ? "até" : "expirou em"}{" "}
+                            {loja.trialExpiraEm.toLocaleDateString("pt-BR")}
+                          </span>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell>
                       {lojista ? (

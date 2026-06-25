@@ -1,3 +1,9 @@
+/** Título da aba do navegador no cardápio (padrão: nome da loja). */
+export function tituloAbaCardapio(loja: { nome: string; tituloAba?: string | null }): string {
+  const custom = loja.tituloAba?.trim()
+  return custom || loja.nome
+}
+
 /**
  * Utilitários de configuração de loja.
  *

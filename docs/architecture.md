@@ -139,6 +139,36 @@ Full table service flow:
 - `ItemPedidoAdicional`: records which adicionais were selected per order item (foundation for checkout integration)
 - Admin CRUD at `/painel/adicionais` with product linking UI
 
+### Captação & Auto-cadastro (Fase A)
+
+- Campos novos em `Loja`: `trialExpiraEm DateTime?`, `planoInteresse String?` (`"START" | "PLUS"`).
+- **Rota pública `/comecar`**: formulário de auto-cadastro (nome do estabelecimento, slug auto-gerado/editável e único, responsável, email, senha ≥6, WhatsApp da loja, plano START/PLUS — `?plano=plus` pré-seleciona).
+- **`cadastrarLojaPublicaAction`** (`/comecar/actions.ts`): valida unicidade de slug/email; em `$transaction` cria `Loja` (ativa, cor `#F59E0B`, trial = now+14d, `planoInteresse`) + `Usuario` LOJISTA + 7 horários default (11:00–23:00); faz auto-login (`createSession`) e redireciona para `/painel?bemvindo=1`. Mensagem clara se o email já existe ("Faça login").
+- **`lib/planos.ts`**: `getTrialStatus(lojaId)` → `{ temTrial, ativo, expirado, expiraEm, diasRestantes }`. Stubs `canUseRecuperador`/`canUseIfood` retornam `true`.
+- **Banner de trial** no `/painel`: ativo ("Trial até DD/MM") ou expirado (aviso âmbar — não bloqueia no MVP). Banner de boas-vindas quando `?bemvindo=1`.
+- **CTAs da landing** apontam para `/comecar`: hero, pricing (por plano via `?plano=`), support, header (desktop + mobile), e link "Criar minha loja grátis" no `/login`. O formulário de contato permanece em `POST /api/contato` (inalterado).
+- **Admin (`/admin`)**: coluna "Plano / Trial" mostrando `planoInteresse` e `trialExpiraEm`.
+
+### Recuperador de Vendas / Carrinho Abandonado (Fase B)
+
+- **Modelo `CarrinhoAbandonado`** (scoped por `lojaId`): `telefone?`, `nomeCliente?`, `itensJson` (Json), `subtotal`, `recuperacaoEnviadaEm?`, `recuperadoEm?`, `pedidoRecuperadoId?` (unique), timestamps. Unique `[lojaId, telefone]` para upsert; index `[lojaId, criadoEm]`.
+- **`Loja`**: `recuperadorAtivo Boolean @default(true)`, `recuperadorMinutos Int @default(15)`.
+- **Captura** (`[slug]/checkout/checkout-form.tsx`): ao preencher o telefone (debounce + onBlur) chama `registrarCarrinhoAbandonadoAction(slug, telefone, nome, items)` → upsert por `lojaId+telefone` atualizando `itensJson`/`subtotal`. Fire-and-forget, nunca quebra o checkout.
+- **Recuperação automática** (`criarPedidoAction`): ao criar pedido, se houver carrinho aberto para o telefone, marca `recuperadoEm` + `pedidoRecuperadoId`.
+- **`lib/recuperador.ts` → `processarRecuperacoesPendentes()`**: seleciona carrinhos com telefone, sem mensagem enviada, ociosos há mais de `recuperadorMinutos`, criados nas últimas 24h, loja com `recuperadorAtivo` e `WHATSAPP_ENABLED=true`. Envia WhatsApp (via `enviarMensagemWhatsApp`) com link `APP_URL/{slug}/checkout`; marca `recuperacaoEnviadaEm` **antes** do envio (idempotente).
+- **Cron**: `POST /api/cron/recuperador` protegido por `Authorization: Bearer CRON_SECRET`. Agende a cada ~5 min em produção.
+- **Painel (`/painel/recuperador`)**: nav item "Recuperador"; toggle ativo + minutos (`updateRecuperadorAction`); cards de métricas 7d (abandonados / enviados / recuperados + conversão); tabela dos últimos 50 carrinhos. Gate `canUseRecuperador(lojaId)` (stub).
+
+### iFood Entrega Fácil (Fase C)
+
+- **`Loja`**: `ifoodEntregaFacilAtivo`, `ifoodMerchantId?`, `ifoodAccessToken? @db.Text`, `ifoodRefreshToken? @db.Text`, `ifoodTokenExpiraEm?`.
+- **`Pedido`**: `ifoodEntregaId?`, `ifoodEntregaStatus?`, `ifoodEntregaSolicitadaEm?`.
+- **`lib/ifood-entrega.ts`**: integração com a API de Shipping (pedidos fora da plataforma). `obterAccessTokenValido` (OAuth2 client_credentials, com refresh e persistência do token por loja), `solicitarEntrega(pedidoId)` (`POST /shipping/v1.0/merchants/{merchantId}/orders`, só DELIVERY com endereço, idempotente), `syncStatus(pedidoId)`, `testarConexao`/`refreshToken`. Todas retornam `{ ok, error?, data? }` e **nunca lançam** — sem credenciais a UI aparece "desconectada".
+- **Config (`/painel/configuracoes`)**: seção "iFood Entrega Fácil" (toggle + Merchant ID + "Testar conexão"). Gate `canUseIfood(lojaId)` (stub).
+- **KDS**: em cards DELIVERY, botão "Solicitar entregador iFood" (quando ativo e sem `ifoodEntregaId`) e badge de status + sincronizar. Actions `solicitarEntregaIfoodAction` / `syncEntregaIfoodAction`.
+- **Webhook**: `POST /api/webhooks/ifood/entrega` (header `x-ifood-webhook-secret` ou `?secret=` = `IFOOD_WEBHOOK_SECRET`). Casa pelo `ifoodEntregaId`, atualiza status; `DELIVERED` → `CONCLUIDO`, em rota → `EM_ENTREGA`.
+- Setup completo em [`docs/ifood-entrega-facil-setup.md`](./ifood-entrega-facil-setup.md).
+
 ### WhatsApp Notifications
 
 - Integration via [Evolution API](https://doc.evolution-api.com/)
@@ -158,21 +188,27 @@ Full table service flow:
 ## Data Models (Simplified)
 
 ```
-Loja  (+ pedidoMinimo?, taxaEntregaFixa?, freteGratisAcima?)
+Loja  (+ pedidoMinimo?, taxaEntregaFixa?, freteGratisAcima?,
+        trialExpiraEm?, planoInteresse?,
+        recuperadorAtivo, recuperadorMinutos,
+        ifoodEntregaFacilAtivo, ifoodMerchantId?, ifoodAccessToken?, ifoodRefreshToken?, ifoodTokenExpiraEm?)
  ├── Categoria[]
  │    └── Produto[]
  │         └── ProdutoAdicional[] → Adicional
- ├── Pedido[]  (+ subtotal?, taxaEntrega?, desconto?, cupomId?)
+ ├── Pedido[]  (+ subtotal?, taxaEntrega?, desconto?, cupomId?,
+ │              ifoodEntregaId?, ifoodEntregaStatus?, ifoodEntregaSolicitadaEm?)
  │    ├── ItemPedido[]
  │    │    └── ItemPedidoAdicional[] → Adicional
  │    ├── Mesa?
  │    ├── Funcionario?
- │    └── Cupom?
+ │    ├── Cupom?
+ │    └── CarrinhoAbandonado?  (recuperado → pedidoRecuperadoId)
  ├── HorarioFuncionamento[]   ← 7 registros (um por dia da semana)
  ├── Mesa[]
  ├── Funcionario[]
  ├── Adicional[]
  ├── Cupom[]
+ ├── CarrinhoAbandonado[]      ← recuperador de vendas (unique lojaId+telefone)
  └── Usuario[]
 ```
 
@@ -181,7 +217,13 @@ Loja  (+ pedidoMinimo?, taxaEntregaFixa?, freteGratisAcima?)
 See `.env.example` for all required variables:
 
 - `DATABASE_URL` — PostgreSQL connection string
+- `DIRECT_URL` — conexão direta Supabase (porta 5432) para `db push` em produção
 - `AUTH_SECRET` — JWT secret (32+ chars)
-- `APP_URL` — Base URL da aplicação (ex: `https://lookmenu.com`). Usado pelo gerador de QR Code.
+- `CRON_SECRET` — protege `POST /api/cron/recuperador`
+- `APP_URL` — Base URL da aplicação (ex: `https://lookmenu.onrender.com`). Usado pelo gerador de QR Code.
 - `WHATSAPP_ENABLED`, `EVOLUTION_API_URL`, `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE`
+- `SUPPORT_WHATSAPP` — número de suporte (formato internacional sem +)
+- `IFOOD_CLIENT_ID`, `IFOOD_CLIENT_SECRET`, `IFOOD_API_URL`, `IFOOD_WEBHOOK_SECRET` — iFood Entrega Fácil (ver [`docs/ifood-entrega-facil-setup.md`](./ifood-entrega-facil-setup.md))
 - `STORAGE_PROVIDER`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_BUCKET`
+
+Deploy gratuito (Supabase + Render): ver [`docs/DEPLOY.md`](./DEPLOY.md).

@@ -34,6 +34,9 @@ type ProdutoRow = {
   emDestaque: boolean
   destinoPreparo: string
   imagemUrl: string | null
+  controlaEstoque: boolean
+  quantidadeEstoque: number
+  estoqueMinimo: number | null
 }
 
 type ProdutosManagerProps = {
@@ -172,6 +175,20 @@ function ProdutoRowItem({
               <input type="checkbox" name="emDestaque" defaultChecked={produto.emDestaque} className="h-4 w-4 accent-primary" />
               Destaque ⭐
             </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="controlaEstoque" defaultChecked={produto.controlaEstoque} className="h-4 w-4 accent-primary" />
+              Controlar estoque
+            </label>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:col-span-2">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Estoque mínimo (alerta)</label>
+              <Input name="estoqueMinimo" type="number" min="0" step="1" defaultValue={produto.estoqueMinimo ?? ""} placeholder="Ex: 5" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Qtd atual: {produto.quantidadeEstoque}</label>
+              <p className="text-xs text-muted-foreground pt-2">Ajuste via <a href="/painel/estoque" className="underline">Estoque</a></p>
+            </div>
           </div>
           <div className="flex gap-2 sm:col-span-2">
             <Button type="submit" size="sm" disabled={updatePending}>
@@ -241,6 +258,20 @@ export function ProdutosManager({ produtos, categorias }: ProdutosManagerProps) 
             <input type="checkbox" name="emDestaque" className="h-4 w-4 accent-primary" />
             Destaque ⭐
           </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="controlaEstoque" className="h-4 w-4 accent-primary" />
+            Controlar estoque
+          </label>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:col-span-2">
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Quantidade inicial</label>
+            <Input name="quantidadeEstoque" type="number" min="0" step="1" defaultValue="0" placeholder="0" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">Estoque mínimo (alerta)</label>
+            <Input name="estoqueMinimo" type="number" min="0" step="1" placeholder="Ex: 5" />
+          </div>
         </div>
         <Button type="submit" disabled={createPending} className="sm:col-span-2 sm:w-fit">
           Adicionar produto

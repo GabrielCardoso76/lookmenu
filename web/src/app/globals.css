@@ -80,6 +80,7 @@
 
   /* ── Cardápio pages: override dark theme vars to light mode ── */
   .cardapio-light {
+    color: hsl(0 0% 9%);
     --background: 0 0% 100%;
     --foreground: 0 0% 9%;
     --card: 0 0% 100%;
@@ -90,9 +91,28 @@
     --secondary: 0 0% 96%;
     --secondary-foreground: 0 0% 9%;
     --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 9%;
     --border: 0 0% 89%;
     --input: 0 0% 89%;
+    --ring: 0 0% 63%;
+  }
+
+  .cardapio-light .text-muted-foreground {
+    color: hsl(0 0% 40%);
+  }
+
+  .cardapio-light input,
+  .cardapio-light textarea,
+  .cardapio-light select {
+    background-color: hsl(0 0% 100%);
+    color: hsl(0 0% 9%);
+  }
+
+  .cardapio-light input::placeholder,
+  .cardapio-light textarea::placeholder {
+    color: hsl(0 0% 45%);
   }
 
   /* ── New background textures (light variants) ── */

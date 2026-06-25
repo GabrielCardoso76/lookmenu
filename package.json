@@ -1,8 +1,11 @@
 {
   "scripts": {
     "db:generate": "prisma generate",
+    "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "bun prisma/seed.ts"
+    "db:seed": "bun prisma/seed.ts",
+    "render:build": "bash scripts/render-build.sh",
+    "render:start": "cd web && bun run start"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

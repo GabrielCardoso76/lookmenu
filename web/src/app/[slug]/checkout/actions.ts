@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { lojaEstaAberta, calcularTotaisPedido } from "@/lib/loja-config"
 import { notificarClientePedido } from "@/lib/notificacoes"
+import { ajustarEstoque } from "@/lib/estoque"
 
 export type CheckoutState = {
   error?: string
@@ -15,6 +16,58 @@ export type ItemCheckout = {
   quantidade: number
   precoUnitario: number
   nome: string
+}
+
+export type ItemCarrinhoAbandonado = {
+  id: string
+  nome: string
+  preco: number
+  quantidade: number
+}
+
+/**
+ * Registra/atualiza um carrinho abandonado para a loja, indexado por telefone.
+ * Fire-and-forget: chamado do checkout enquanto o cliente preenche os dados.
+ * Nunca lança — falhas são silenciosas para não atrapalhar o checkout.
+ */
+export async function registrarCarrinhoAbandonadoAction(
+  slug: string,
+  telefone: string,
+  nomeCliente: string,
+  items: ItemCarrinhoAbandonado[],
+): Promise<void> {
+  try {
+    const telefoneDigits = (telefone ?? "").replace(/\D/g, "")
+    if (telefoneDigits.length < 10) return
+    if (!Array.isArray(items) || items.length === 0) return
+
+    const loja = await prisma.loja.findFirst({
+      where: { slug, ativa: true },
+      select: { id: true, recuperadorAtivo: true },
+    })
+    if (!loja || !loja.recuperadorAtivo) return
+
+    const subtotal = items.reduce((s, i) => s + i.preco * i.quantidade, 0)
+    const nome = nomeCliente.trim() || null
+
+    await prisma.carrinhoAbandonado.upsert({
+      where: { lojaId_telefone: { lojaId: loja.id, telefone: telefoneDigits } },
+      create: {
+        lojaId: loja.id,
+        telefone: telefoneDigits,
+        nomeCliente: nome,
+        itensJson: items,
+        subtotal,
+      },
+      update: {
+        nomeCliente: nome,
+        itensJson: items,
+        subtotal,
+      },
+    })
+  } catch {
+    // silencioso
+  }
 }
 
 export type ValidarCupomResult = {
@@ -161,7 +214,7 @@ export async function criarPedidoAction(
   const produtoIds = itens.map((i) => i.produtoId)
   const produtos = await prisma.produto.findMany({
     where: { id: { in: produtoIds }, lojaId: loja.id, disponivel: true },
-    select: { id: true, preco: true },
+    select: { id: true, preco: true, controlaEstoque: true },
   })
 
   if (produtos.length !== produtoIds.length) {
@@ -256,8 +309,31 @@ export async function criarPedidoAction(
       })
     }
 
+    for (const item of itens) {
+      const produto = produtos.find((pr) => pr.id === item.produtoId)
+      if (produto?.controlaEstoque) {
+        await ajustarEstoque(tx, {
+          produtoId: item.produtoId,
+          lojaId: loja.id,
+          delta: item.quantidade,
+          tipo: "VENDA",
+          pedidoId: p.id,
+        })
+      }
+    }
+
     return p
   })
+
+  // Marca carrinho abandonado como recuperado (se houver um aberto para este telefone)
+  try {
+    await prisma.carrinhoAbandonado.updateMany({
+      where: { lojaId: loja.id, telefone: telefoneDigits, recuperadoEm: null },
+      data: { recuperadoEm: new Date(), pedidoRecuperadoId: pedido.id },
+    })
+  } catch {
+    // não bloquear o pedido por causa do recuperador
+  }
 
   void notificarClientePedido("CRIADO", pedido.id)
 

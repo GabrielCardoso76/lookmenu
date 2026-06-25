@@ -35,6 +35,9 @@ export default async function ProdutosPage() {
     emDestaque: p.emDestaque,
     destinoPreparo: p.destinoPreparo,
     imagemUrl: p.imagemUrl,
+    controlaEstoque: p.controlaEstoque,
+    quantidadeEstoque: p.quantidadeEstoque,
+    estoqueMinimo: p.estoqueMinimo,
   }))
 
   return (

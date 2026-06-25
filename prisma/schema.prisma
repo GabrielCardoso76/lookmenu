@@ -67,6 +67,20 @@ enum TipoDesconto {
   VALOR_FIXO
 }
 
+enum TipoMovimentacaoEstoque {
+  ENTRADA
+  SAIDA
+  AJUSTE
+  VENDA
+  CANCELAMENTO
+}
+
+enum StatusTicket {
+  ABERTO
+  RESPONDIDO
+  FECHADO
+}
+
 model Loja {
   id               String           @id @default(uuid()) @db.Uuid
   nome             String
@@ -81,6 +95,7 @@ model Loja {
   logoUrl               String?          @map("logo_url")
   fontePreset           String?          @map("fonte_preset")
   subtituloCardapio     String?          @map("subtitulo_cardapio")
+  tituloAba             String?          @map("titulo_aba")
   aceitaPixSite         Boolean          @default(true) @map("aceita_pix_site")
   aceitaCartaoEntrega   Boolean          @default(true) @map("aceita_cartao_entrega")
   aceitaDinheiroEntrega Boolean          @default(true) @map("aceita_dinheiro_entrega")
@@ -90,19 +105,54 @@ model Loja {
   pedidoMinimo          Decimal?         @db.Decimal(10, 2) @map("pedido_minimo")
   taxaEntregaFixa       Decimal?         @db.Decimal(10, 2) @map("taxa_entrega_fixa")
   freteGratisAcima      Decimal?         @db.Decimal(10, 2) @map("frete_gratis_acima")
-  criadoEm              DateTime         @default(now()) @map("criado_em")
+  pdvAtivo              Boolean   @default(true) @map("pdv_ativo")
+  onboardingDismissedEm DateTime?              @map("onboarding_dismissed_em")
+  trialExpiraEm         DateTime?              @map("trial_expira_em")
+  planoInteresse        String?                @map("plano_interesse")
+  recuperadorAtivo      Boolean   @default(true) @map("recuperador_ativo")
+  recuperadorMinutos    Int       @default(15)   @map("recuperador_minutos")
+  ifoodEntregaFacilAtivo Boolean  @default(false) @map("ifood_entrega_facil_ativo")
+  ifoodMerchantId       String?                  @map("ifood_merchant_id")
+  ifoodAccessToken      String?   @db.Text        @map("ifood_access_token")
+  ifoodRefreshToken     String?   @db.Text        @map("ifood_refresh_token")
+  ifoodTokenExpiraEm    DateTime?                 @map("ifood_token_expira_em")
+  criadoEm              DateTime  @default(now()) @map("criado_em")
 
-  categorias   Categoria[]
-  produtos     Produto[]
-  pedidos      Pedido[]
-  usuarios     Usuario[]
-  mesas        Mesa[]
-  funcionarios Funcionario[]
-  adicionais   Adicional[]
-  horarios     HorarioFuncionamento[]
-  cupons       Cupom[]
+  categorias           Categoria[]
+  produtos             Produto[]
+  pedidos              Pedido[]
+  usuarios             Usuario[]
+  mesas                Mesa[]
+  funcionarios         Funcionario[]
+  adicionais           Adicional[]
+  horarios             HorarioFuncionamento[]
+  cupons               Cupom[]
+  tickets              TicketSuporte[]
+  movimentacoesEstoque MovimentacaoEstoque[]
+  carrinhosAbandonados CarrinhoAbandonado[]
 
   @@map("lojas")
+}
+
+model CarrinhoAbandonado {
+  id                   String    @id @default(uuid()) @db.Uuid
+  lojaId               String    @db.Uuid @map("loja_id")
+  telefone             String?
+  nomeCliente          String?   @map("nome_cliente")
+  itensJson            Json      @map("itens_json")
+  subtotal             Decimal   @db.Decimal(10, 2)
+  recuperacaoEnviadaEm DateTime? @map("recuperacao_enviada_em")
+  recuperadoEm         DateTime? @map("recuperado_em")
+  pedidoRecuperadoId   String?   @unique @db.Uuid @map("pedido_recuperado_id")
+  criadoEm             DateTime  @default(now()) @map("criado_em")
+  atualizadoEm         DateTime  @updatedAt @map("atualizado_em")
+
+  loja             Loja    @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  pedidoRecuperado Pedido? @relation("PedidoRecuperado", fields: [pedidoRecuperadoId], references: [id], onDelete: SetNull)
+
+  @@unique([lojaId, telefone], name: "lojaId_telefone")
+  @@index([lojaId, criadoEm])
+  @@map("carrinhos_abandonados")
 }
 
 model HorarioFuncionamento {
@@ -169,14 +219,18 @@ model Produto {
   descricao      String         @db.Text
   preco          Decimal        @db.Decimal(10, 2)
   imagemUrl      String?        @map("imagem_url")
-  disponivel     Boolean        @default(true)
-  emDestaque     Boolean        @default(false) @map("em_destaque")
-  destinoPreparo DestinoPreparo @default(NENHUM) @map("destino_preparo")
+  disponivel        Boolean        @default(true)
+  emDestaque        Boolean        @default(false) @map("em_destaque")
+  destinoPreparo    DestinoPreparo @default(NENHUM) @map("destino_preparo")
+  controlaEstoque   Boolean        @default(false) @map("controla_estoque")
+  quantidadeEstoque Int            @default(0)     @map("quantidade_estoque")
+  estoqueMinimo     Int?                           @map("estoque_minimo")
 
-  loja        Loja               @relation(fields: [lojaId], references: [id], onDelete: Cascade)
-  categoria   Categoria          @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
-  itensPedido ItemPedido[]
-  adicionais  ProdutoAdicional[]
+  loja          Loja               @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  categoria     Categoria          @relation(fields: [categoriaId], references: [id], onDelete: Cascade)
+  itensPedido   ItemPedido[]
+  adicionais    ProdutoAdicional[]
+  movimentacoes MovimentacaoEstoque[]
 
   @@index([lojaId])
   @@index([categoriaId])
@@ -238,13 +292,19 @@ model Pedido {
 
   entregueBarEm  DateTime?       @map("entregue_bar_em")
 
-  loja            Loja         @relation(fields: [lojaId], references: [id], onDelete: Cascade)
-  cliente         Cliente?     @relation(fields: [clienteId], references: [id], onDelete: SetNull)
-  enderecoEntrega Endereco?    @relation("PedidoEnderecoEntrega", fields: [enderecoEntregaId], references: [id], onDelete: SetNull)
-  mesa            Mesa?        @relation(fields: [mesaId], references: [id], onDelete: SetNull)
-  funcionario     Funcionario? @relation(fields: [funcionarioId], references: [id], onDelete: SetNull)
-  cupom           Cupom?       @relation(fields: [cupomId], references: [id], onDelete: SetNull)
-  itens           ItemPedido[]
+  ifoodEntregaId           String?   @map("ifood_entrega_id")
+  ifoodEntregaStatus       String?   @map("ifood_entrega_status")
+  ifoodEntregaSolicitadaEm DateTime? @map("ifood_entrega_solicitada_em")
+
+  loja                 Loja         @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  cliente              Cliente?     @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  enderecoEntrega      Endereco?    @relation("PedidoEnderecoEntrega", fields: [enderecoEntregaId], references: [id], onDelete: SetNull)
+  mesa                 Mesa?        @relation(fields: [mesaId], references: [id], onDelete: SetNull)
+  funcionario          Funcionario? @relation(fields: [funcionarioId], references: [id], onDelete: SetNull)
+  cupom                Cupom?       @relation(fields: [cupomId], references: [id], onDelete: SetNull)
+  itens                ItemPedido[]
+  movimentacoesEstoque MovimentacaoEstoque[]
+  carrinhoRecuperado   CarrinhoAbandonado? @relation("PedidoRecuperado")
 
   @@index([lojaId])
   @@index([clienteId])
@@ -282,7 +342,8 @@ model Usuario {
   ativo     Boolean      @default(true)
   criadoEm  DateTime     @default(now()) @map("criado_em")
 
-  loja Loja? @relation(fields: [lojaId], references: [id], onDelete: SetNull)
+  loja    Loja?          @relation(fields: [lojaId], references: [id], onDelete: SetNull)
+  tickets TicketSuporte[]
 
   @@index([lojaId])
   @@map("usuarios")
@@ -352,4 +413,43 @@ model Cupom {
   @@unique([lojaId, codigo])
   @@index([lojaId])
   @@map("cupons")
+}
+
+model MovimentacaoEstoque {
+  id                 String                  @id @default(uuid()) @db.Uuid
+  lojaId             String                  @db.Uuid @map("loja_id")
+  produtoId          String                  @db.Uuid @map("produto_id")
+  tipo               TipoMovimentacaoEstoque
+  quantidade         Int
+  quantidadeAnterior Int                     @map("quantidade_anterior")
+  quantidadeNova     Int                     @map("quantidade_nova")
+  observacao         String?                 @db.Text
+  pedidoId           String?                 @db.Uuid @map("pedido_id")
+  criadoEm           DateTime                @default(now()) @map("criado_em")
+
+  loja    Loja    @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  produto Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  pedido  Pedido? @relation(fields: [pedidoId], references: [id], onDelete: SetNull)
+
+  @@index([lojaId])
+  @@index([produtoId])
+  @@index([pedidoId])
+  @@map("movimentacoes_estoque")
+}
+
+model TicketSuporte {
+  id        String       @id @default(uuid()) @db.Uuid
+  lojaId    String?      @db.Uuid @map("loja_id")
+  usuarioId String?      @db.Uuid @map("usuario_id")
+  assunto   String
+  mensagem  String       @db.Text
+  status    StatusTicket @default(ABERTO)
+  criadoEm  DateTime     @default(now()) @map("criado_em")
+
+  loja    Loja?    @relation(fields: [lojaId], references: [id], onDelete: SetNull)
+  usuario Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@index([lojaId])
+  @@index([usuarioId])
+  @@map("tickets_suporte")
 }

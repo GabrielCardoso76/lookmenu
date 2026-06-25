@@ -15,6 +15,7 @@ type LojaAparencia = {
   logoUrl: string | null
   fontePreset: string | null
   subtituloCardapio: string | null
+  tituloAba: string | null
 }
 
 type PreviewState = {
@@ -24,6 +25,7 @@ type PreviewState = {
   fonte: string
   logoUrl: string
   subtitulo: string
+  tituloAba: string
 }
 
 export function AparenciaShell({ loja }: { loja: LojaAparencia }) {
@@ -35,6 +37,7 @@ export function AparenciaShell({ loja }: { loja: LojaAparencia }) {
     fonte: loja.fontePreset || "Inter",
     logoUrl: loja.logoUrl || "",
     subtitulo: loja.subtituloCardapio ?? "",
+    tituloAba: loja.tituloAba ?? "",
   })
 
   function handlePreviewChange(state: PreviewState) {
@@ -50,6 +53,7 @@ export function AparenciaShell({ loja }: { loja: LojaAparencia }) {
       _fonte: previewState.fonte,
       ...(previewState.logoUrl ? { _logo: previewState.logoUrl } : {}),
       ...(previewState.subtitulo ? { _subtitulo: previewState.subtitulo } : {}),
+      _tituloAba: previewState.tituloAba,
     })
     return `/${loja.slug}?${params.toString()}`
   }
@@ -115,7 +119,9 @@ export function AparenciaShell({ loja }: { loja: LojaAparencia }) {
                 <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
                 <span className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
                 <span className="h-2.5 w-2.5 rounded-full bg-green-400" />
-                <div className="mx-3 flex-1 h-4 rounded bg-gray-200 max-w-xs" />
+                <div className="mx-3 flex-1 h-4 rounded bg-gray-200 max-w-xs truncate px-2 text-[10px] leading-4 text-gray-500">
+                  {previewState.tituloAba.trim() || loja.nome}
+                </div>
               </div>
               <iframe
                 src={iframeSrc}

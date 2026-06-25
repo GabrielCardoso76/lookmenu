@@ -1,7 +1,8 @@
+import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
 import { prisma } from "@/lib/prisma"
-import { lojaEstaAberta } from "@/lib/loja-config"
+import { lojaEstaAberta, tituloAbaCardapio } from "@/lib/loja-config"
 import { CartProvider } from "./carrinho/cart-context"
 import { ClassicoTemplate } from "./cardapio/classico-template"
 import { ModernoTemplate } from "./cardapio/moderno-template"
@@ -18,7 +19,29 @@ type PageProps = {
     _fonte?: string
     _logo?: string
     _subtitulo?: string
+    _tituloAba?: string
   }>
+}
+
+export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
+  const { slug } = await params
+  const sp = await searchParams
+
+  const loja = await prisma.loja.findFirst({
+    where: { slug, ativa: true },
+    select: { nome: true, tituloAba: true },
+  })
+
+  if (!loja) {
+    return { title: "LookMenu" }
+  }
+
+  const titulo =
+    sp._preview === "1" && sp._tituloAba !== undefined
+      ? sp._tituloAba.trim() || loja.nome
+      : tituloAbaCardapio(loja)
+
+  return { title: titulo }
 }
 
 export default async function CardapioPage({ params, searchParams }: PageProps) {

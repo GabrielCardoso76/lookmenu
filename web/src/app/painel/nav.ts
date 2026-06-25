@@ -1,8 +1,10 @@
 export const PAINEL_NAV = [
   { href: "/painel", label: "Início" },
   { href: "/painel/pedidos", label: "Pedidos" },
+  { href: "/painel/pdv", label: "PDV" },
   { href: "/painel/categorias", label: "Categorias" },
   { href: "/painel/produtos", label: "Produtos" },
+  { href: "/painel/estoque", label: "Estoque" },
   { href: "/painel/mesas", label: "Mesas" },
   { href: "/painel/funcionarios", label: "Funcionários" },
   { href: "/painel/financeiro", label: "Financeiro" },
@@ -10,6 +12,8 @@ export const PAINEL_NAV = [
   { href: "/painel/adicionais", label: "Adicionais" },
   { href: "/painel/whatsapp", label: "WhatsApp" },
   { href: "/painel/cupons", label: "Cupons" },
+  { href: "/painel/recuperador", label: "Recuperador" },
   { href: "/painel/configuracoes", label: "Configurações" },
   { href: "/painel/qrcode", label: "QR Codes" },
+  { href: "/painel/suporte", label: "Suporte" },
 ]
